@@ -1,7 +1,7 @@
 #ERCOT Forecasting
 
 #Set working directory.
-setwd('/Users/jennstarling/UTAustin/Research/ERCOT/Data from ARL')
+setwd('/Users/jennstarling/UTAustin/Research/ercot_Data from ARL')
 
 #Read in data.
 load = read.table('load_data.gz',row.names=NULL,sep=',',header=T)
@@ -57,6 +57,7 @@ for (name in zone_names){
 
 	#Assign row means to new column.
 	dewpt_raw[,name] = rowMeans(dewpt_raw[,colnames(dewpt_raw) %in% stns_in_zone],na.rm=T)
+	
 	#NO TEMP READING FOR ERCOT.  IS ERCOT TEMP CALCULATED USING OTHERS?
 	#Looks like ERCOT load is just sum of other loads.  Double check this.
 }
@@ -75,6 +76,7 @@ length(t2)
 length(t3)
 
 identical(t2,t3) #Dewpoint and temp have same measurement times.
+identical(t1,t3) #Load has different measurement times.
 
 #Load measurements are at different times.
 #NEXT STEP: Match up load and temp/dewpt obs!
@@ -122,6 +124,7 @@ save(zones,file='zones.rda')
 save(dewpt_raw,file='dewpt_raw.rda')
 save(stations,file='stations.rda')
 save(counties,file='counties.rda')
+save(load,file='load.rda')
 
 #Save cleaned temp and dewpoint data.
 save(temp,file='temp.rda')
@@ -132,7 +135,7 @@ save(dewpt,file='dewpt.rda')
 
 #-------------------------------------------------------
 #Code to load data from R objects.
-setwd('/Users/jennstarling/UTAustin/Research/ERCOT/R Data Objects')
+setwd('/Users/jennstarling/UTAustin/Research/ercot/R Data Objects')
 load('temp.rda')
 load('dewpt.rda')
 load('zones.rda')
