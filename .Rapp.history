@@ -1,28 +1,386 @@
-hx = new_envelope$hx[A_idx]#
-		hpx = new_envelope$hpx[A_idx]
-hpx
-z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
-		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
+mu_boot_mean = apply(mu_boot,1,mean)
+mu_boot_mean
+#Plot outputs of each parameter to observe sampling distribution.#
+#d=2, so two mu params, and four sigma params.#
+pdf('/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-01/R Files/boot_mu.pdf')#
+par(mfrow=c(1,2))#
+hist(mu_boot[1,])#
+hist(mu_boot[2,])#
+dev.off()#
 #
-			#Note: we only know how to sample from exponential at zero.  We must do two things:#
-			#1. Check if slope hpx_star is +/-.#
-			#2. Adjust x* realization by shifting it.#
+pdf('/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-01/R Files/boot_sigma.pdf')#
+par(mfrow=c(2,2))#
+hist(sig_boot[1,1,])#
+hist(sig_boot[1,2,])#
+hist(sig_boot[2,1,])#
+hist(sig_boot[2,2,])#
+dev.off()
+data = read.csv('/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/statsmod/Course-Data/gdpgrowth.csv',header=T)
+head(data)
+dim(data)
+rm(list=ls())#
 #
-		if(hxp<0){#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = -(x_star + z2)	#
-		} else{#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = x_star + z2#
-		}
-if(hpx<0){#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = -(x_star + z2)	#
-		} else{#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = x_star + z2#
-		}
-x_star
+#Read data file.#
+data = read.csv('/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/statsmod/Course-Data/gdpgrowth.csv',header=T)
+n = nrow(data)#
+X = cbind(rep(1,n),data$DEF60)#
+y = data$GR6096#
+p = ncol(X)
+n
+X
+y
+p
+#Frequentist linear model.#
+freq_lm = lm(y~X-1)#
+summary(freq_lm)
+plot(y,pch=19,col='black')
+n
+plot(y,pch=19,col='black')
+plot(X[,2]y,pch=19,col='black',xlab='X',ylab='y')
+plot(X[,2],y,pch=19,col='black',xlab='X',ylab='y')
+beta_hat = freq_lm$coefficients
+beta_hat
+plot(X[,2],y,pch=19,col='black',xlab='X',ylab='y')#
+abline(a=beta_hat[1], b=beta_hat[2],lwd=2,col='blue')
+plot(X[,2],y,pch=19,col='black',xlab='X',ylab='y',main='Frequentist Linear Model')#
+abline(a=beta_hat[1], b=beta_hat[2],lwd=2,col='blue')
+#Visually inspect fit.#
+pdf(file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-02/LaTeX Files/Figures/Frequentist_Linear_Model.pdf')#
+plot(X[,2],y,pch=19,col='black',xlab='X',ylab='y',main='Frequentist Linear Model')#
+abline(a=beta_hat[1], b=beta_hat[2],lwd=2,col='blue')#
+dev.off()
+Lambda = diag(n)
+Lambda
+dim(Lambda)
+#---------------------#
+beta_cov_boot = function(X,y,B){#
+	#OVERVIEW: This function generates B bootstrap realizations of the beta#
+	# least-squares coefficients.  It then computes the covariance matrix of beta#
+	# by computing the variances and covariances of each vector of bootstrapped beta_j's.#
+	#INPUTS:	X = nxp design matrix, with no intercept col of 1's (function will add these)#
+	#			y = nx1 response vector#
+	#			B = number of bootstrap samples.#
+	#OUTPUTS:	cov_hat = Sigma_hat covariance matrix for betas.#
+	n = nrow(X)		#Number of observations in design matrix.#
+	p = ncol(X)		#Number of predictors.#
+	#Matrix to hold each beta bootstrap sample.  Each row is a sample. Each col is a beta_j.#
+	betahat_boot = matrix(0,nrow=B,ncol=p)#
+	#Pre-cache (X'X)^-1 X'#
+	xtx_inv_xt = solve(t(X) %*% X) %*% t(X)#
+	#Fit model and obtain residuals, e.#
+	beta_hat = xtx_inv_xt %*% y#
+	yhat = X %*% beta_hat#
+	e = y - yhat#
+	#NOTE: Bootstrapping the residuals only, as we want to treat X as fixed.#
+	for (b in 1:B){#
+		samps = sample(1:n,n,replace=T)	#Select bootstrap indices.#
+		e_boot = e[samps]				#Sample residuals.#
+		y_boot = yhat + e_boot			#Bootstrapped y values.#
+		#Calculate bootstrapped beta coefficients.#
+		betahat_boot[b,] = xtx_inv_xt %*% y_boot#
+	}#
+	#Estimate cov matrix using var(beta_i,beta_j) for all cols.  #
+	#(Each col is a vector of B beta_j estimates.)#
+	beta_hat_cov = matrix(0,nrow=p,ncol=p)#
+	#Set up list of matrix indices.#
+	idx = expand.grid(1:p,1:p)#
+	beta_hat_cov = cov(betahat_boot)#
+	#for (i in 1:10){#
+	#	for (j in 1:10){#
+	#		#Calculate covar entry.#
+	#		beta_hat_cov[i,j] = cov(betahat_boot[,i], betahat_boot[,j])#
+	#	} #end j loop#
+	#} #end i loop#
+#
+	return(beta_hat_cov)	#
+} #END FUNCTION
+# Load the library & data#
+library(mlbench)#
+ozone = data(Ozone, package='mlbench')#
+#
+# Scrub the missing values#
+# Extract the relevant columns #
+ozone = na.omit(Ozone)[,4:13]#
+#
+y = ozone[,1]#
+x = as.matrix(ozone[,2:10])#
+#
+# add an intercept#
+x = cbind(1,x)#
+#
+#Compute cov matrix using lm.  (-1) means don't fit an intercept; we hard-coded it in X.#
+lm1 = lm(y~x-1)#
+#
+summary(lm1)#
+betacovlm = vcov(lm1)#
+sqrt(diag(betacovlm))#
+#
+#Run bootstrap function.#
+mybetacov = beta_cov_boot(x,y,B=10000)#
+#
+#Display bootstrap estimate.#
+round(mybetacov,2)	#
+#Display the parametric normal theory estimate.#
+round(betacovlm,2)
+mvn_simulate = function(mu,Sigma){#
+	#PURPOSE: Simulates mvn random variables given a mean mu and cov Sigma.#
+	#This function returns a single X ~ MVN(mu,Sigma) realization.#
+#
+	#ALGORITHM:#
+	# This algorithm is based on the derivation in Multivariate Normal Part E, which#
+	# showed that any MVN can be written as a linear combo of standard normals:#
+#
+	# Simulate Z, a vector of p normal random variables.  (p = desired mvn dimension, p = length(mu))#
+	# Let mu be the vector of means, Sigma be the specified covariance matrix.#
+	# Let Sigma = LL^T.  #
+	# Simulate mvn rv as X = LZ + mu#
+	#INPUTS: 	mu = desired vector of means.  Must be length p.#
+	#			Sigma = desired covariance matrix.  Must be (pxp), symmetric, pos semidef.#
+	#OUTPUTS: 	x = a realization from MVN(mu,Sigma)#
+	p = length(mu)		#Set length of mu vector.#
+	z = rnorm(p,0,1)	#Generate p iid standard normals z_i.#
+	#Compute L using spectral value decomposition.  V %*% lam %*% solve(V)#
+	#(See notes below.  Cholesky is 3x faster, spectral is more stable.)#
+	eg = eigen(Sigma)			#Store spectoral value decomposition of Sigma.#
+	V = eg$vectors				#Extract eigen vectors.#
+	lam = diag(eg$values)		#Extract diagonal matrix of eigenvalues.#
+	L = V %*% sqrt(lam)			#Assign L so LL^T = Sigma	#
+#
+	#Compute realization of x ~ mvn(mu,Sigma)#
+	x = L %*% z + mu#
+	return(x)#
+}#
+#
+#Test it out:#
+mu = c(2,5)#
+Sigma = matrix(c(10,3,3,2),2,2)#
+x = mvn_simulate(mu,Sigma)
+x
+mvn_simulate = function(n,mu,Sigma){#
+	#PURPOSE: Simulates mvn random variables given a mean mu and cov Sigma.#
+	#This function returns a single X ~ MVN(mu,Sigma) realization.#
+#
+	#ALGORITHM:#
+	# This algorithm is based on the derivation in Multivariate Normal Part E, which#
+	# showed that any MVN can be written as a linear combo of standard normals:#
+#
+	# Simulate Z, a vector of p normal random variables.  (p = desired mvn dimension, p = length(mu))#
+	# Let mu be the vector of means, Sigma be the specified covariance matrix.#
+	# Let Sigma = LL^T.  #
+	# Simulate mvn rv as X = LZ + mu#
+	#INPUTS: 	mu = desired vector of means.  Must be length p.#
+	#			Sigma = desired covariance matrix.  Must be (pxp), symmetric, pos semidef.#
+	#			n = number of mvn random variables to generate.#
+	#OUTPUTS: 	x = a matrix of realizations from MVN(mu,Sigma).  (Each x is a column.)#
+	p = length(mu)		#Set length of mu vector.#
+	z = matrix(rnorm(n*p,0,1),nrow=p,ncol=n)	#Generate p iid standard normals z_i for each realization.#
+	#Compute L using spectral value decomposition.  V %*% lam %*% solve(V)#
+	#(See notes below.  Cholesky is 3x faster, spectral is more stable.)#
+	eg = eigen(Sigma)			#Store spectoral value decomposition of Sigma.#
+	V = eg$vectors				#Extract eigen vectors.#
+	lam = diag(eg$values)		#Extract diagonal matrix of eigenvalues.#
+	L = V %*% sqrt(lam)			#Assign L so LL^T = Sigma	#
+#
+	#Compute realization of x ~ mvn(mu,Sigma)#
+	x = apply(z,2,function(z) L %*% z + mu)#
+	#x = L %*% z + mu#
+	return(x)#
+}
+mu = c(1,2,5)#
+Sigma = matrix(c(10,3,3,2),2,2)#
+x = mvn_simulate(mu,Sigma)
+n=5
+p = length(mu)		#Set length of mu vector.#
+	z = matrix(rnorm(n*p,0,1),nrow=p,ncol=n)	#Generate p iid standard normals z_i for each realization.#
+	#Compute L using spectral value decomposition.  V %*% lam %*% solve(V)#
+	#(See notes below.  Cholesky is 3x faster, spectral is more stable.)#
+	eg = eigen(Sigma)			#Store spectoral value decomposition of Sigma.#
+	V = eg$vectors				#Extract eigen vectors.#
+	lam = diag(eg$values)		#Extract diagonal matrix of eigenvalues.#
+	L = V %*% sqrt(lam)			#Assign L so LL^T = Sigma
+L
+p
+n
+x = apply(z,2,function(z) L %*% z + mu)
+x = apply(z,2,function(a) L %*% a + mu)
+x = apply(z,1,function(a) L %*% a + mu)
+z
+L
+p
+mu = c(2,5)#
+Sigma = matrix(c(10,3,3,2),2,2)
+p = length(mu)		#Set length of mu vector.#
+	z = matrix(rnorm(n*p,0,1),nrow=p,ncol=n)	#Generate p iid standard normals z_i for each realization.#
+	#Compute L using spectral value decomposition.  V %*% lam %*% solve(V)#
+	#(See notes below.  Cholesky is 3x faster, spectral is more stable.)#
+	eg = eigen(Sigma)			#Store spectoral value decomposition of Sigma.#
+	V = eg$vectors				#Extract eigen vectors.#
+	lam = diag(eg$values)		#Extract diagonal matrix of eigenvalues.#
+	L = V %*% sqrt(lam)			#Assign L so LL^T = Sigma	#
+#
+	#Compute realization of x ~ mvn(mu,Sigma)#
+	x = apply(z,2,function(a) L %*% a + mu)
+x
+x = mvn_simulate(6,mu,Sigma)
+x
+rowMeans(x)
+cox(x)
+cov(x)
+mvn_simulate = function(n,mu,Sigma){#
+	#PURPOSE: Simulates mvn random variables given a mean mu and cov Sigma.#
+	#This function returns a single X ~ MVN(mu,Sigma) realization.#
+#
+	#ALGORITHM:#
+	# This algorithm is based on the derivation in Multivariate Normal Part E, which#
+	# showed that any MVN can be written as a linear combo of standard normals:#
+#
+	# Simulate Z, a vector of p normal random variables.  (p = desired mvn dimension, p = length(mu))#
+	# Let mu be the vector of means, Sigma be the specified covariance matrix.#
+	# Let Sigma = LL^T.  #
+	# Simulate mvn rv as X = LZ + mu#
+	#INPUTS: 	mu = desired vector of means.  Must be length p.#
+	#			Sigma = desired covariance matrix.  Must be (pxp), symmetric, pos semidef.#
+	#			n = number of mvn random variables to generate.#
+	#OUTPUTS: 	x = a matrix of realizations from MVN(mu,Sigma).  (Each x is a column.)#
+	p = length(mu)		#Set length of mu vector.#
+	z = matrix(rnorm(n*p,0,1),nrow=p,ncol=n)	#Generate p iid standard normals z_i for each realization.#
+	#Compute L using spectral value decomposition.  V %*% lam %*% solve(V)#
+	#(See notes below.  Cholesky is 3x faster, spectral is more stable.)#
+	eg = eigen(Sigma)			#Store spectoral value decomposition of Sigma.#
+	V = eg$vectors				#Extract eigen vectors.#
+	lam = diag(eg$values)		#Extract diagonal matrix of eigenvalues.#
+	L = V %*% sqrt(lam)			#Assign L so LL^T = Sigma	#
+#
+	#Compute realizations of x ~ mvn(mu,Sigma)#
+	#x = L %*% z + mu#
+	x = apply(z,2,function(a) L %*% a + mu)#
+#
+	return(x)#
+}
+covs = apply(x,2,cov)
+cov(x[,1])
+x
+cov(x[1,],x[2,])
+cov(x[,1],x[,2])
+Sigma
+var(x[1,])#
+var(x[2,])
+var(x[2,])#
+cov(x[1,],x[2,])
+x = mvn_simulate(100,mu,Sigma)#
+#
+rowMeans(x)#
+#
+var(x[1,])#
+var(x[2,])#
+cov(x[1,],x[2,])
+plot(x)
+x
+x = mvn_simulate(100,mu,Sigma)#
+#
+rowMeans(x)#
+#
+Sigma_hat = matrix(c(#
+var(x[1,]),#
+cov(x[1,],x[2,]),#
+cov(x[1,],x[2,]),#
+var(x[2,])),byrow=T,nrow=2)#
+#
+Sigma_hat
+x = mvn_simulate(10000,mu,Sigma)#
+#
+rowMeans(x)#
+#
+Sigma_hat = matrix(c(#
+var(x[1,]),#
+cov(x[1,],x[2,]),#
+cov(x[1,],x[2,]),#
+var(x[2,])),byrow=T,nrow=2)#
+#
+Sigma_hat
+update_envelope = function(x,h,hp,xlb,xub){#
+	#FUNCTION: Update piece-wise linear envelope of logf(x).#
+	##
+	#INPUTS:#
+	#	x = vector of points (unsorted)#
+	#	h = function for log(f(x)).#
+	#	hp = function for d/dx log(f(x)).#
+	#	xdomain = lower and upper bounds for x.#
+	##
+	#OUTPUTS:#
+	#	x = vector of points, sorted#
+	#	hx = h(x) = log(f(x)) values for each x.#
+	#	z = intersection points for tangents (in between each x value)#
+	#	m = slope for tangent lines.#
+	#	b = y-intercept for tangent lines#
+	x = sort(x)#
+	hx = h(x,a)		#Values of logf(x) at each x.#
+	hpx = hp(x,a)	#Slopes#
+#
+	m = hpx			#slopes#
+	b = hx - hpx*x	#intercepts#
+	#Calculate points where tangents meet.#
+	z = rep(0,length(x)-1)	#
+	for (i in 1:length(z)){#
+		z[i] = (hx[i+1] - hx[i] - x[i+1]*hpx[i+1] + x[i]*hpx[i]) / (hpx[i] - hpx[i+1])#
+	}#
+	z = c(xlb,z,xub)	#Add in bounds#
+	return(list(x=x,hx=hx,hpx=hpx,m=m,b=b,z=z))#
+}#
+#
+calculate_exp_areas = function(envelope){#
+	#FUNCTION: Calculate area for each part of piecewise#
+	#			exponential functions created by exponentiating #
+	#			piecewise linear envelope.#
+	#INPUTS:#
+	#	envelope: Takes in a piecewise linear envelope function, as created by#
+	#				update_envelope().#
+	#OUTPUTS:	#
+	#	areas: A vector of areas, A1 to Ak, where k = length(z).#
+	x = envelope$x	#Length of x is number of areas to calculate.#
+	z = envelope$z	#Extract z elements from envelope.#
+	hx = envelope$hx#
+	hpx = envelope$hpx				#
+	Areas = rep(0,length(x)) #Empty vector to hold areas.#
+	#Loop through areas.#
+	for (i in 1:length(Areas)){#
+		Areas[i] = (exp(hx[i] - hpx[i]*x[i]) / hpx[i]) * (exp(hpx[i]*z[i+1]) - exp(hpx[i]*z[i]))	#
+	}	#
+	return(Areas)#
+}#
+#
+rtexp = function(n,m,t){#
+	#PURPOSE: Draws n random samples from inverse cdf of truncated exponential.#
+	#n = number of samples.#
+	#m = rate#
+	#t = level of truncation; x value at which to truncate.#
+	u = runif(n)#
+	itex = -log(1-u*(1-exp(-t*m)))/m#
+	return(itex)#
+}#
+#
+#NOT USED.  Embedded in update_envelope function.#
+tangent_intersect = function(x1,x2,hx1,hx2,hpx1,hpx2){#
+	#PURPOSE: Returns x value where two tangent lines intersect.#
+	#x1, x2 = two points#
+	#hx1, hx2 = function values evaluated at x1 and x2 for some h(x).#
+	#hpx1,hpx2 = derivative values evaluated at x1 and x2 for h'(x).#
+	xtan = (hx2 - hx1 - hx2*hpx2 + x1*hpx1) / (hpx1-hpx2)#
+	return(xtan)#
+}#
+#
+#NOT USED.#
+itexp = function(u,m,t){#
+	#PURPOSE: Computes the inverse cdf for the truncated exponential at a specified quantile u.#
+	#u = quantile#
+	#m = rate#
+	#t = level of truncation; x value at which to truncate.#
+	return(-log(1-u*(1-exp(-t*m)))/m)#
+}
+#Set up original function fx, hx=logfx, and hpx=d/dx (hx).#
+f  = function(x) x^3 * exp(-2*x) * (1-exp(-2*x))^3#
+h  = function(x) 3*log(x) - 2*x + 3*log(1-exp(-2*x))#
+hp = function(x) 3/x - 2 + 6/(exp(2*x)-1)
 adaptive_rej_sampling = function(f,h,hp,M,n=10,x,xlb=0,xub=1){#
 	#FUNCTION: Performs adaptive rejection sampling.#
 	##
@@ -66,24 +424,428 @@ adaptive_rej_sampling = function(f,h,hp,M,n=10,x,xlb=0,xub=1){#
 #
 		if(hpx<0){#
 			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = -(x_star + z2)	#
+			x_star = z2 - x_star#
 		} else{#
 			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = x_star + z2#
+			x_star = z1 + x_star#
 		}#
-#		x_star = rtexp(n=1,m=hpx,t=z2-z1)	#Truncate at z2-z1, since shifted so z1=0.#
-#		x_star = ifelse(hpx<0,	#Test if slope is negative.#
-#			z1 - x_star,	#If slope neg, flip: x* ~ Exp(hpx), then xstar = z1-x*#
-#			x_star + z1)	#If slope not neg, just shift: x* ~ Exp(hpx), then xstar = z1 + x*#
 		#-----------------------#
 		#5. Acceptance test:#
 		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
 		#Set up the proposal function.  This is the exponential function selected#
 		#for sampling, above, for the selected area.#
-		x1 = new_envelope$x[A_idx]	#For calculation of value of tangent line at x_star.#
-			#b =  new_envelope$b[A_idx]	#The slope for the calculation of the tangent line value at x_star.#
-		log_g = hp(x1,a) * x_star + h(x1,a) - hp(x1,a)*x1	#Value of piecewise linear envelope at x_star.#
-		g = exp(log_g)	#Value of piecewise exponential at x_star.#
+		x1 = new_envelope$x[A_idx]		#For calculation of value of tangent line at x_star.#
+		b =  new_envelope$b[A_idx]		#The slope for the calculation of the tangent line value at x_star.#
+		log_g = hp(x1,a) * x_star + b	#Value of piecewise linear envelope at x_star.#
+		g = exp(log_g)					#Value of piecewise exponential at x_star.#
+		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
+		#	If accept, then add x_star to fx_sample vector.#
+		#	If reject, then add x_star to x vector of points to sample, and start over.#
+		if (u <= f(x_star,a) / g){#
+			fx_sample = c(fx_sample,x_star)#
+			accepts = accepts + 1#
+		} else{#
+			x = c(x,x_star)#
+		}#
+	} #Start over for another sample until reach n tries.#
+	return(list(fx_sample=fx_sample,p_accept = accepts/n))#
+}#
+#
+##############################
+###   HELPER FUNCTIONS:   ####
+##############################
+#
+update_envelope = function(x,h,hp,xlb,xub){#
+	#FUNCTION: Update piece-wise linear envelope of logf(x).#
+	##
+	#INPUTS:#
+	#	x = vector of points (unsorted)#
+	#	h = function for log(f(x)).#
+	#	hp = function for d/dx log(f(x)).#
+	#	xdomain = lower and upper bounds for x.#
+	##
+	#OUTPUTS:#
+	#	x = vector of points, sorted#
+	#	hx = h(x) = log(f(x)) values for each x.#
+	#	z = intersection points for tangents (in between each x value)#
+	#	m = slope for tangent lines.#
+	#	b = y-intercept for tangent lines#
+	x = sort(x)#
+	hx = h(x)	#Values of logf(x) at each x.#
+	hpx = hp(x)	#Slopes#
+#
+	m = hpx			#slopes#
+	b = hx - hpx*x	#intercepts#
+	#Calculate points where tangents meet.#
+	z = rep(0,length(x)-1)	#
+	for (i in 1:length(z)){#
+		z[i] = (hx[i+1] - hx[i] - x[i+1]*hpx[i+1] + x[i]*hpx[i]) / (hpx[i] - hpx[i+1])#
+	}#
+	z = c(xlb,z,xub)	#Add in bounds#
+	return(list(x=x,hx=hx,hpx=hpx,m=m,b=b,z=z))#
+}#
+#
+calculate_exp_areas = function(envelope){#
+	#FUNCTION: Calculate area for each part of piecewise#
+	#			exponential functions created by exponentiating #
+	#			piecewise linear envelope.#
+	#INPUTS:#
+	#	envelope: Takes in a piecewise linear envelope function, as created by#
+	#				update_envelope().#
+	#OUTPUTS:	#
+	#	areas: A vector of areas, A1 to Ak, where k = length(z).#
+	x = envelope$x	#Length of x is number of areas to calculate.#
+	z = envelope$z	#Extract z elements from envelope.#
+	hx = envelope$hx#
+	hpx = envelope$hpx				#
+	Areas = rep(0,length(x)) #Empty vector to hold areas.#
+	#Loop through areas.#
+	for (i in 1:length(Areas)){#
+		Areas[i] = (exp(hx[i] - hpx[i]*x[i]) / hpx[i]) * (exp(hpx[i]*z[i+1]) - exp(hpx[i]*z[i]))	#
+	}	#
+	return(Areas)#
+}#
+#
+rtexp = function(n,m,t){#
+	#PURPOSE: Draws n random samples from inverse cdf of truncated exponential.#
+	#n = number of samples.#
+	#m = rate#
+	#t = level of truncation; x value at which to truncate.#
+	u = runif(n)#
+	itex = -log(1-u*(1-exp(-t*m)))/m#
+	return(itex)#
+}#
+#
+#NOT USED.  Embedded in update_envelope function.#
+tangent_intersect = function(x1,x2,hx1,hx2,hpx1,hpx2){#
+	#PURPOSE: Returns x value where two tangent lines intersect.#
+	#x1, x2 = two points#
+	#hx1, hx2 = function values evaluated at x1 and x2 for some h(x).#
+	#hpx1,hpx2 = derivative values evaluated at x1 and x2 for h'(x).#
+	xtan = (hx2 - hx1 - hx2*hpx2 + x1*hpx1) / (hpx1-hpx2)#
+	return(xtan)#
+}#
+#
+#NOT USED.#
+itexp = function(u,m,t){#
+	#PURPOSE: Computes the inverse cdf for the truncated exponential at a specified quantile u.#
+	#u = quantile#
+	#m = rate#
+	#t = level of truncation; x value at which to truncate.#
+	return(-log(1-u*(1-exp(-t*m)))/m)#
+}
+fx_samp = adaptive_rej_sampling(f,h,hp,M,n=1000,c(.25,.75),xlb=-Inf,xub=Inf)
+adaptive_rej_sampling = function(f,h,hp,n=10,x,xlb=0,xub=1){#
+	#FUNCTION: Performs adaptive rejection sampling.#
+	##
+	#INPUTS:#
+	#	f = target function f(x).  Must be log-concave.#
+	#	h = log of target function, logf(x).#
+	#	hp = first derivative of log of target function, d/dx log(f(x))#
+	#	M = max of f(x).  (Must be a bounded function.)#
+	#	n = sample size.  (Returned sample will be lower size, bc some rejections.)#
+	#	x = vector of starting points.  Must be length 2 or longer.#
+	#	xlb = lower bound of domain for f(x).  Can be -Inf.#
+	#	xub = upper bound of domain for f(x).  Can be Inf.#
+	##
+	#OUTPUTS:#
+	#	fx_sample = vector of realizations sampled from f(x).#
+	#	p_accept = prob(acceptance); accepts/n.#
+	fx_sample = numeric() 	#Empty vector to store sampled values from fx.#
+	accepts = 0		#For tracking P(Acceptance).#
+#
+	for(ns in 1:n){#
+		#1. Update envelope: piecewise linear envelope in log-scale.#
+		new_envelope = update_envelope(x,h,hp,xlb,xub)#
+		#-----------------------#
+		#2. Calculate areas of piecewise exponential functions based on#
+		#exponentiating each tangent line over its range z_p to z_p+1.#
+		Areas = calculate_exp_areas(new_envelope)#
+		#-----------------------#
+		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
+		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
+		#A_idx = sample(1:length(Areas),size=1,replace=F)#
+		#-----------------------#
+		#4. Sample an x* from the truncated exponential distibution from selected area.#
+		hx = new_envelope$hx[A_idx]#
+		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
+		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
+		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
+#
+			#Note: we only know how to sample from exponential at zero.  We must do two things:#
+			#1. Check if slope hpx_star is +/-.#
+			#2. Adjust x* realization by shifting it.#
+#
+		if(hpx<0){#
+			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+			x_star = z2 - x_star#
+		} else{#
+			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+			x_star = z1 + x_star#
+		}#
+		#-----------------------#
+		#5. Acceptance test:#
+		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
+		#Set up the proposal function.  This is the exponential function selected#
+		#for sampling, above, for the selected area.#
+		x1 = new_envelope$x[A_idx]		#For calculation of value of tangent line at x_star.#
+		b =  new_envelope$b[A_idx]		#The slope for the calculation of the tangent line value at x_star.#
+		log_g = hp(x1,a) * x_star + b	#Value of piecewise linear envelope at x_star.#
+		g = exp(log_g)					#Value of piecewise exponential at x_star.#
+		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
+		#	If accept, then add x_star to fx_sample vector.#
+		#	If reject, then add x_star to x vector of points to sample, and start over.#
+		if (u <= f(x_star,a) / g){#
+			fx_sample = c(fx_sample,x_star)#
+			accepts = accepts + 1#
+		} else{#
+			x = c(x,x_star)#
+		}#
+	} #Start over for another sample until reach n tries.#
+	return(list(fx_sample=fx_sample,p_accept = accepts/n))#
+}#
+#
+##############################
+###   HELPER FUNCTIONS:   ####
+##############################
+#
+update_envelope = function(x,h,hp,xlb,xub){#
+	#FUNCTION: Update piece-wise linear envelope of logf(x).#
+	##
+	#INPUTS:#
+	#	x = vector of points (unsorted)#
+	#	h = function for log(f(x)).#
+	#	hp = function for d/dx log(f(x)).#
+	#	xdomain = lower and upper bounds for x.#
+	##
+	#OUTPUTS:#
+	#	x = vector of points, sorted#
+	#	hx = h(x) = log(f(x)) values for each x.#
+	#	z = intersection points for tangents (in between each x value)#
+	#	m = slope for tangent lines.#
+	#	b = y-intercept for tangent lines#
+	x = sort(x)#
+	hx = h(x)	#Values of logf(x) at each x.#
+	hpx = hp(x)	#Slopes#
+#
+	m = hpx			#slopes#
+	b = hx - hpx*x	#intercepts#
+	#Calculate points where tangents meet.#
+	z = rep(0,length(x)-1)	#
+	for (i in 1:length(z)){#
+		z[i] = (hx[i+1] - hx[i] - x[i+1]*hpx[i+1] + x[i]*hpx[i]) / (hpx[i] - hpx[i+1])#
+	}#
+	z = c(xlb,z,xub)	#Add in bounds#
+	return(list(x=x,hx=hx,hpx=hpx,m=m,b=b,z=z))#
+}#
+#
+calculate_exp_areas = function(envelope){#
+	#FUNCTION: Calculate area for each part of piecewise#
+	#			exponential functions created by exponentiating #
+	#			piecewise linear envelope.#
+	#INPUTS:#
+	#	envelope: Takes in a piecewise linear envelope function, as created by#
+	#				update_envelope().#
+	#OUTPUTS:	#
+	#	areas: A vector of areas, A1 to Ak, where k = length(z).#
+	x = envelope$x	#Length of x is number of areas to calculate.#
+	z = envelope$z	#Extract z elements from envelope.#
+	hx = envelope$hx#
+	hpx = envelope$hpx				#
+	Areas = rep(0,length(x)) #Empty vector to hold areas.#
+	#Loop through areas.#
+	for (i in 1:length(Areas)){#
+		Areas[i] = (exp(hx[i] - hpx[i]*x[i]) / hpx[i]) * (exp(hpx[i]*z[i+1]) - exp(hpx[i]*z[i]))	#
+	}	#
+	return(Areas)#
+}#
+#
+rtexp = function(n,m,t){#
+	#PURPOSE: Draws n random samples from inverse cdf of truncated exponential.#
+	#n = number of samples.#
+	#m = rate#
+	#t = level of truncation; x value at which to truncate.#
+	u = runif(n)#
+	itex = -log(1-u*(1-exp(-t*m)))/m#
+	return(itex)#
+}#
+#
+#NOT USED.  Embedded in update_envelope function.#
+tangent_intersect = function(x1,x2,hx1,hx2,hpx1,hpx2){#
+	#PURPOSE: Returns x value where two tangent lines intersect.#
+	#x1, x2 = two points#
+	#hx1, hx2 = function values evaluated at x1 and x2 for some h(x).#
+	#hpx1,hpx2 = derivative values evaluated at x1 and x2 for h'(x).#
+	xtan = (hx2 - hx1 - hx2*hpx2 + x1*hpx1) / (hpx1-hpx2)#
+	return(xtan)#
+}#
+#
+#NOT USED.#
+itexp = function(u,m,t){#
+	#PURPOSE: Computes the inverse cdf for the truncated exponential at a specified quantile u.#
+	#u = quantile#
+	#m = rate#
+	#t = level of truncation; x value at which to truncate.#
+	return(-log(1-u*(1-exp(-t*m)))/m)#
+}
+fx_samp = adaptive_rej_sampling(f,h,hp,n=1000,c(.25,.75),xlb=-Inf,xub=Inf)
+n=10
+xlb=-Inf;xub=Inf
+fx_sample = numeric() 	#Empty vector to store sampled values from fx.#
+	accepts = 0		#For tracking P(Acceptance).
+x=c(.25,.75)
+x = seq(-10,10,by=.01)#
+hx = h(x)#
+plot(x,hx,type='l',col='blue')
+x=
+c(.1,7)
+x
+new_envelope = update_envelope(x,h,hp,xlb,xub)
+new_envelope
+Areas = calculate_exp_areas(new_envelope)
+Areas
+A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))
+A_idx
+hx = new_envelope$hx[A_idx]#
+		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
+		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
+		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
+#
+			#Note: we only know how to sample from exponential at zero.  We must do two things:#
+			#1. Check if slope hpx_star is +/-.#
+			#2. Adjust x* realization by shifting it.#
+#
+		if(hpx<0){#
+			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+			x_star = z2 - x_star#
+		} else{#
+			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+			x_star = z1 + x_star#
+		}
+x_star
+z1
+z2
+hpx
+z2-z1
+rtexp(n=1,m=hpx,t=z2-z1)
+n=1
+m=hpx
+t=Inf
+t
+exp(-t*m)
+exp(-Inf)
+-t*m
+exp(-Inf)
+exp(-t*m)
+t*m
+z2
+z1
+z2-z1
+x_star = rtexp(n=1,m=-hpx,t=z2-z1)#
+			x_star = z2 - x_star
+x_star
+m=-hpx
+m
+t
+exp(-t*m)
+u = runif(n)#
+	itex = -log(1-u*(1-exp(-t*m)))/m
+itex
+rtexp = function(n,m,t){#
+	#PURPOSE: Draws n random samples from inverse cdf of truncated exponential.#
+	#n = number of samples.#
+	#m = rate#
+	#t = level of truncation; x value at which to truncate.#
+	u = runif(n)#
+	itex = -log(1-u*(1-exp(-t*m)))/m#
+	return(itex)#
+}
+hpx
+(hpx<0)
+x_star = rtexp(n=1,m=hpx,t=z2-z1)
+x_star
+A_idx=2
+A_idx=1
+hx = new_envelope$hx[A_idx]#
+		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
+		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
+		z2 = new_envelope$z[A_idx+1]
+z1
+z2
+x_star = rtexp(n=1,m=hpx,t=z2-z1)
+x_star
+x_star = z1 + x_star
+x_star
+hpx
+x_star = rtexp(n=1,m=hpx,t=z2-z1)	#
+			x_star = z2 - x_star
+x_star
+rtexp = function(n,m,t){#
+	#PURPOSE: Draws n random samples from inverse cdf of truncated exponential.#
+	#n = number of samples.#
+	#m = rate#
+	#t = level of truncation; x value at which to truncate.#
+	u = runif(n)#
+	itex = -log(1-u*(1-exp(-t*m)))/m#
+	return(itex)#
+}
+adaptive_rej_sampling = function(f,h,hp,n=10,x,xlb=0,xub=1){#
+	#FUNCTION: Performs adaptive rejection sampling.#
+	##
+	#INPUTS:#
+	#	f = target function f(x).  Must be log-concave.#
+	#	h = log of target function, logf(x).#
+	#	hp = first derivative of log of target function, d/dx log(f(x))#
+	#	M = max of f(x).  (Must be a bounded function.)#
+	#	n = sample size.  (Returned sample will be lower size, bc some rejections.)#
+	#	x = vector of starting points.  Must be length 2 or longer.#
+	#	xlb = lower bound of domain for f(x).  Can be -Inf.#
+	#	xub = upper bound of domain for f(x).  Can be Inf.#
+	##
+	#OUTPUTS:#
+	#	fx_sample = vector of realizations sampled from f(x).#
+	#	p_accept = prob(acceptance); accepts/n.#
+	fx_sample = numeric() 	#Empty vector to store sampled values from fx.#
+	accepts = 0		#For tracking P(Acceptance).#
+#
+	for(ns in 1:n){#
+		#1. Update envelope: piecewise linear envelope in log-scale.#
+		new_envelope = update_envelope(x,h,hp,xlb,xub)#
+		#-----------------------#
+		#2. Calculate areas of piecewise exponential functions based on#
+		#exponentiating each tangent line over its range z_p to z_p+1.#
+		Areas = calculate_exp_areas(new_envelope)#
+		#-----------------------#
+		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
+		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
+		#A_idx = sample(1:length(Areas),size=1,replace=F)#
+		#-----------------------#
+		#4. Sample an x* from the truncated exponential distibution from selected area.#
+		hx = new_envelope$hx[A_idx]#
+		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
+		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
+		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
+#
+			#Note: we only know how to sample from exponential at zero.  We must do two things:#
+			#1. Check if slope hpx_star is +/-.#
+			#2. Adjust x* realization by shifting it.#
+#
+		if(hpx<0){#
+			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+			x_star = z1 + x_star#
+		} else{#
+			x_star = rtexp(n=1,m=hpx,t=z2-z1)	#
+			x_star = z2 - x_star#
+		}#
+		#-----------------------#
+		#5. Acceptance test:#
+		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
+		#Set up the proposal function.  This is the exponential function selected#
+		#for sampling, above, for the selected area.#
+		x1 = new_envelope$x[A_idx]		#For calculation of value of tangent line at x_star.#
+		b =  new_envelope$b[A_idx]		#The slope for the calculation of the tangent line value at x_star.#
+		log_g = hp(x1,a) * x_star + b	#Value of piecewise linear envelope at x_star.#
+		g = exp(log_g)					#Value of piecewise exponential at x_star.#
 		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
 		#	If accept, then add x_star to fx_sample vector.#
 		#	If reject, then add x_star to x vector of points to sample, and start over.#
@@ -96,24 +858,1589 @@ adaptive_rej_sampling = function(f,h,hp,M,n=10,x,xlb=0,xub=1){#
 	} #Start over for another sample until reach n tries.#
 	return(list(fx_sample=fx_sample,p_accept = accepts/n))#
 }
-fx_samp = adaptive_rej_sampling(f,h,hp,M,n=1000,c(.25,.75),xlb=0,xub=1)
+fx_samp = adaptive_rej_sampling(f,h,hp,n=1000,c(.1,7),xlb=-Inf,xub=Inf)
+###############################
+###   MAIN ARS FUNCTION:   ####
+###############################
+#
+adaptive_rej_sampling = function(f,h,hp,n=10,x,xlb=0,xub=1){#
+	#FUNCTION: Performs adaptive rejection sampling.#
+	##
+	#INPUTS:#
+	#	f = target function f(x).  Must be log-concave.#
+	#	h = log of target function, logf(x).#
+	#	hp = first derivative of log of target function, d/dx log(f(x))#
+	#	M = max of f(x).  (Must be a bounded function.)#
+	#	n = sample size.  (Returned sample will be lower size, bc some rejections.)#
+	#	x = vector of starting points.  Must be length 2 or longer.#
+	#	xlb = lower bound of domain for f(x).  Can be -Inf.#
+	#	xub = upper bound of domain for f(x).  Can be Inf.#
+	##
+	#OUTPUTS:#
+	#	fx_sample = vector of realizations sampled from f(x).#
+	#	p_accept = prob(acceptance); accepts/n.#
+	fx_sample = numeric() 	#Empty vector to store sampled values from fx.#
+	accepts = 0		#For tracking P(Acceptance).#
+#
+	for(ns in 1:n){#
+		#1. Update envelope: piecewise linear envelope in log-scale.#
+		new_envelope = update_envelope(x,h,hp,xlb,xub)#
+		#-----------------------#
+		#2. Calculate areas of piecewise exponential functions based on#
+		#exponentiating each tangent line over its range z_p to z_p+1.#
+		Areas = calculate_exp_areas(new_envelope)#
+		#-----------------------#
+		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
+		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
+		#A_idx = sample(1:length(Areas),size=1,replace=F)#
+		#-----------------------#
+		#4. Sample an x* from the truncated exponential distibution from selected area.#
+		hx = new_envelope$hx[A_idx]#
+		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
+		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
+		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
+#
+			#Note: we only know how to sample from exponential at zero.  We must do two things:#
+			#1. Check if slope hpx_star is +/-.#
+			#2. Adjust x* realization by shifting it.#
+#
+		if(hpx<0){#
+			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+			x_star = z1 + x_star#
+		} else{#
+			x_star = rtexp(n=1,m=hpx,t=z2-z1)	#
+			x_star = z2 - x_star#
+		}#
+		#-----------------------#
+		#5. Acceptance test:#
+		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
+		#Set up the proposal function.  This is the exponential function selected#
+		#for sampling, above, for the selected area.#
+		x1 = new_envelope$x[A_idx]		#For calculation of value of tangent line at x_star.#
+		b =  new_envelope$b[A_idx]		#The slope for the calculation of the tangent line value at x_star.#
+		log_g = hp(x1) * x_star + b	#Value of piecewise linear envelope at x_star.#
+		g = exp(log_g)					#Value of piecewise exponential at x_star.#
+		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
+		#	If accept, then add x_star to fx_sample vector.#
+		#	If reject, then add x_star to x vector of points to sample, and start over.#
+		if (u <= f(x_star,a) / g){#
+			fx_sample = c(fx_sample,x_star)#
+			accepts = accepts + 1#
+		} else{#
+			x = c(x,x_star)#
+		}#
+	} #Start over for another sample until reach n tries.#
+	return(list(fx_sample=fx_sample,p_accept = accepts/n))#
+}
+fx_samp = adaptive_rej_sampling(f,h,hp,n=1000,c(.1,7),xlb=-Inf,xub=Inf)
+adaptive_rej_sampling = function(f,h,hp,n=10,x,xlb=0,xub=1){#
+	#FUNCTION: Performs adaptive rejection sampling.#
+	##
+	#INPUTS:#
+	#	f = target function f(x).  Must be log-concave.#
+	#	h = log of target function, logf(x).#
+	#	hp = first derivative of log of target function, d/dx log(f(x))#
+	#	M = max of f(x).  (Must be a bounded function.)#
+	#	n = sample size.  (Returned sample will be lower size, bc some rejections.)#
+	#	x = vector of starting points.  Must be length 2 or longer.#
+	#	xlb = lower bound of domain for f(x).  Can be -Inf.#
+	#	xub = upper bound of domain for f(x).  Can be Inf.#
+	##
+	#OUTPUTS:#
+	#	fx_sample = vector of realizations sampled from f(x).#
+	#	p_accept = prob(acceptance); accepts/n.#
+	fx_sample = numeric() 	#Empty vector to store sampled values from fx.#
+	accepts = 0		#For tracking P(Acceptance).#
+#
+	for(ns in 1:n){#
+		#1. Update envelope: piecewise linear envelope in log-scale.#
+		new_envelope = update_envelope(x,h,hp,xlb,xub)#
+		#-----------------------#
+		#2. Calculate areas of piecewise exponential functions based on#
+		#exponentiating each tangent line over its range z_p to z_p+1.#
+		Areas = calculate_exp_areas(new_envelope)#
+		#-----------------------#
+		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
+		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
+		#A_idx = sample(1:length(Areas),size=1,replace=F)#
+		#-----------------------#
+		#4. Sample an x* from the truncated exponential distibution from selected area.#
+		hx = new_envelope$hx[A_idx]#
+		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
+		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
+		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
+#
+			#Note: we only know how to sample from exponential at zero.  We must do two things:#
+			#1. Check if slope hpx_star is +/-.#
+			#2. Adjust x* realization by shifting it.#
+#
+		if(hpx<0){#
+			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+			x_star = z1 + x_star#
+		} else{#
+			x_star = rtexp(n=1,m=hpx,t=z2-z1)	#
+			x_star = z2 - x_star#
+		}#
+		#-----------------------#
+		#5. Acceptance test:#
+		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
+		#Set up the proposal function.  This is the exponential function selected#
+		#for sampling, above, for the selected area.#
+		x1 = new_envelope$x[A_idx]		#For calculation of value of tangent line at x_star.#
+		b =  new_envelope$b[A_idx]		#The slope for the calculation of the tangent line value at x_star.#
+		log_g = hp(x1) * x_star + b	#Value of piecewise linear envelope at x_star.#
+		g = exp(log_g)					#Value of piecewise exponential at x_star.#
+		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
+		#	If accept, then add x_star to fx_sample vector.#
+		#	If reject, then add x_star to x vector of points to sample, and start over.#
+		if (u <= f(x_star) / g){#
+			fx_sample = c(fx_sample,x_star)#
+			accepts = accepts + 1#
+		} else{#
+			x = c(x,x_star)#
+		}#
+	} #Start over for another sample until reach n tries.#
+	return(list(fx_sample=fx_sample,p_accept = accepts/n))#
+}
+fx_samp = adaptive_rej_sampling(f,h,hp,n=1000,c(.1,7),xlb=-Inf,xub=Inf)
+fx_sample = numeric() 	#Empty vector to store sampled values from fx.#
+	accepts = 0		#For tracking P(Acceptance).
+n=10
+x
+xub
+xlb
+new_envelope = update_envelope(x,h,hp,xlb,xub)#
+		#-----------------------#
+		#2. Calculate areas of piecewise exponential functions based on#
+		#exponentiating each tangent line over its range z_p to z_p+1.#
+		Areas = calculate_exp_areas(new_envelope)#
+		#-----------------------#
+		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
+		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
+		#A_idx = sample(1:length(Areas),size=1,replace=F)
+A_idx
+new_envelope
+hx = new_envelope$hx[A_idx]#
+		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
+		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
+		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.
+z1
+z
+z2
+hpx
+if(hpx<0){#
+			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+			x_star = z1 + x_star#
+		} else{#
+			x_star = rtexp(n=1,m=hpx,t=z2-z1)	#
+			x_star = z2 - x_star#
+		}
+x_star
+x_star = rtexp(n=1,m=hpx,t=z2-z1)
+x_star
+x_star = rtexp(n=1,m=-hpx,t=z2-z1)#
+			x_star = z1 + x_star
+x_star
+#5. Acceptance test:#
+		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
+		#Set up the proposal function.  This is the exponential function selected#
+		#for sampling, above, for the selected area.#
+		x1 = new_envelope$x[A_idx]		#For calculation of value of tangent line at x_star.#
+		b =  new_envelope$b[A_idx]		#The slope for the calculation of the tangent line value at x_star.#
+		log_g = hp(x1) * x_star + b	#Value of piecewise linear envelope at x_star.#
+		g = exp(log_g)					#Value of piecewise exponential at x_star.#
+		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
+		#	If accept, then add x_star to fx_sample vector.#
+		#	If reject, then add x_star to x vector of points to sample, and start over.#
+		if (u <= f(x_star) / g){#
+			fx_sample = c(fx_sample,x_star)#
+			accepts = accepts + 1#
+		} else{#
+			x = c(x,x_star)#
+		}
+x
+adaptive_rej_sampling = function(f,h,hp,n=10,x,xlb=0,xub=1){#
+	#FUNCTION: Performs adaptive rejection sampling.#
+	##
+	#INPUTS:#
+	#	f = target function f(x).  Must be log-concave.#
+	#	h = log of target function, logf(x).#
+	#	hp = first derivative of log of target function, d/dx log(f(x))#
+	#	M = max of f(x).  (Must be a bounded function.)#
+	#	n = sample size.  (Returned sample will be lower size, bc some rejections.)#
+	#	x = vector of starting points.  Must be length 2 or longer.#
+	#	xlb = lower bound of domain for f(x).  Can be -Inf.#
+	#	xub = upper bound of domain for f(x).  Can be Inf.#
+	##
+	#OUTPUTS:#
+	#	fx_sample = vector of realizations sampled from f(x).#
+	#	p_accept = prob(acceptance); accepts/n.#
+	fx_sample = numeric() 	#Empty vector to store sampled values from fx.#
+	accepts = 0		#For tracking P(Acceptance).#
+#
+	for(ns in 1:n){#
+		#1. Update envelope: piecewise linear envelope in log-scale.#
+		new_envelope = update_envelope(x,h,hp,xlb,xub)#
+		#-----------------------#
+		#2. Calculate areas of piecewise exponential functions based on#
+		#exponentiating each tangent line over its range z_p to z_p+1.#
+		Areas = calculate_exp_areas(new_envelope)#
+		#-----------------------#
+		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
+		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
+		#A_idx = sample(1:length(Areas),size=1,replace=F)#
+		#-----------------------#
+		#4. Sample an x* from the truncated exponential distibution from selected area.#
+		hx = new_envelope$hx[A_idx]#
+		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
+		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
+		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
+#
+			#Note: we only know how to sample from exponential at zero.  We must do two things:#
+			#1. Check if slope hpx_star is +/-.#
+			#2. Adjust x* realization by shifting it.#
+#
+		if(hpx<0){#
+			x_star = rtexp(n=1,m=-hpx,t=z2-z1)#
+			x_star = z1 + x_star#
+		} else{#
+			x_star = rtexp(n=1,m=hpx,t=z2-z1)	#
+			x_star = z2 - x_star#
+		}#
+		#-----------------------#
+		#5. Acceptance test:#
+		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
+		#Set up the proposal function.  This is the exponential function selected#
+		#for sampling, above, for the selected area.#
+		x1 = new_envelope$x[A_idx]		#For calculation of value of tangent line at x_star.#
+		b =  new_envelope$b[A_idx]		#The slope for the calculation of the tangent line value at x_star.#
+		log_g = hp(x1) * x_star + b	#Value of piecewise linear envelope at x_star.#
+		g = exp(log_g)					#Value of piecewise exponential at x_star.#
+		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
+		#	If accept, then add x_star to fx_sample vector.#
+		#	If reject, then add x_star to x vector of points to sample, and start over.#
+		if (u <= f(x_star) / g){#
+			fx_sample = c(fx_sample,x_star)#
+			accepts = accepts + 1#
+		} else{#
+			x = c(x,x_star)#
+		}#
+	} #Start over for another sample until reach n tries.#
+	return(list(fx_sample=fx_sample,p_accept = accepts/n))#
+}
+fx_samp = adaptive_rej_sampling(f,h,hp,n=1000,c(.1,7),xlb=-Inf,xub=Inf)
+fx_samp
+fx_samp$p_accept#
+hist(fx_samp$fx_sample,freq=F)#
+x=seq(0,1,by=.001)#
+lines(x,f(x),col='blue')
+fx_samp$p_accept#
+hist(fx_samp$fx_sample,freq=F)#
+x=seq(0,10,by=.001)#
+lines(x,10*f(x),col='blue')
+#Plot results.#
+fx_samp$p_accept#
+hist(fx_samp$fx_sample,freq=F)#
+x=seq(0,10,by=.001)#
+lines(x,5*f(x),col='blue')
+fx_samp$p_accept#
+hist(fx_samp$fx_sample,freq=F)#
+x=seq(0,10,by=.001)#
+lines(x,2*f(x),col='blue')
+#Plot results.#
+fx_samp$p_accept#
+hist(fx_samp$fx_sample,freq=F)#
+x=seq(0,10,by=.001)#
+lines(x,3*f(x),col='blue')
+fx_samp$p_accept#
+hist(fx_samp$fx_sample,freq=F)#
+x=seq(0,10,by=.001)#
+lines(x,3.2*f(x),col='blue')
+fx_samp$p_accept#
+hist(fx_samp$fx_sample,freq=F)#
+x=seq(0,10,by=.001)#
+lines(x,3.5*f(x),col='blue')
+fx_samp$p_accept#
+hist(fx_samp$fx_sample,freq=F)#
+x=seq(0,10,by=.001)#
+lines(x,3.4*f(x),col='blue')
+#Call function.#
+fx_samp = adaptive_rej_sampling(f,h,hp,n=1000,c(.1,7),xlb=-Inf,xub=Inf)#
+#
+#fx_samp = adaptive_rej_sampling(f,h,hp,M,n=1000,c(.25,.75),xlb=-Inf,xub=Inf)#
+#
+#Plot results.#
+fx_samp$p_accept#
+hist(fx_samp$fx_sample,freq=F)#
+x=seq(0,10,by=.001)#
+lines(x,3.4*f(x),col='blue')
+fx_samp$p_accept#
+hist(fx_samp$fx_sample,freq=F)#
+x=seq(0,10,by=.001)#
+lines(x,3.2*f(x),col='blue')
+fx_samp$p_accept#
+hist(fx_samp$fx_sample,freq=F)#
+x=seq(0,10,by=.001)#
+lines(x,3*f(x),col='blue')
+pdf(file='/Users/jennstarling/UTAustin/2017S_MCMC/Exercises/Exercise-04/Problem_1_ARS.pdf')#
+fx_samp$p_accept#
+hist(fx_samp$fx_sample,freq=F,main='Adaptive Rejection Sampling')#
+x=seq(0,10,by=.001)#
+lines(x,3*f(x),col='blue')#
+dev.off()
+pdf(file='/Users/jennstarling/UTAustin/2017S_MCMC/Exercises/Exercise-04/Problem_1_ARS.pdf')#
+fx_samp$p_accept#
+hist(fx_samp$fx_sample,freq=F,main='Adaptive Rejection Sampling',xlab='Samples of f(x)')#
+x=seq(0,10,by=.001)#
+lines(x,3*f(x),col='blue')#
+dev.off()
+adaptive_rej_sampling = function(f,h,hp,M,n=10,x,xlb=0,xub=1){#
+	#FUNCTION: Performs adaptive rejection sampling.#
+	##
+	#INPUTS:#
+	#	f = target function f(x).  Must be log-concave.#
+	#	h = log of target function, logf(x).#
+	#	hp = first derivative of log of target function, d/dx log(f(x))#
+	#	M = max of f(x).  (Must be a bounded function.)#
+	#	n = sample size.  (Returned sample will be lower size, bc some rejections.)#
+	#	x = vector of starting points.  Must be length 2 or longer.#
+	#	xlb = lower bound of domain for f(x).  Can be -Inf.#
+	#	xub = upper bound of domain for f(x).  Can be Inf.#
+	##
+	#OUTPUTS:#
+	#	fx_sample = vector of realizations sampled from f(x).#
+	#	p_accept = prob(acceptance); accepts/n.#
+	fx_sample = numeric() 	#Empty vector to store sampled values from fx.#
+	accepts = 0		#For tracking P(Acceptance).#
+#
+	for(ns in 1:n){#
+		#1. Update envelope: piecewise linear envelope in log-scale.#
+		new_envelope = update_envelope(x,h,hp,xlb,xub)#
+		#-----------------------#
+		#2. Calculate areas of piecewise exponential functions based on#
+		#exponentiating each tangent line over its range z_p to z_p+1.#
+		Areas = calculate_exp_areas(new_envelope)#
+		#-----------------------#
+		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
+		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
+		#A_idx = sample(1:length(Areas),size=1,replace=F)#
+		#-----------------------#
+		#4. Sample an x* from the truncated exponential distibution from selected area.#
+		hx = new_envelope$hx[A_idx]#
+		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
+		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
+		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
+#
+			#Note: we only know how to sample from exponential at zero.  We must do two things:#
+			#1. Check if slope hpx_star is +/-.#
+			#2. Adjust x* realization by shifting it.#
+#
+	#	if(hpx<0){#
+	#		x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+	#		x_star = z2 - x_star#
+	#	} else{#
+	#		x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+	#		x_star = z1 + x_star#
+	#	}#
+		if(hpx<0){#
+			x_star = rtexp(n=1,m=-hpx,t=z2-z1)#
+			x_star = z1 + x_star#
+		} else{#
+			x_star = rtexp(n=1,m=hpx,t=z2-z1)	#
+			x_star = z2 - x_star#
+		}#
+		#-----------------------#
+		#5. Acceptance test:#
+		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
+		#Set up the proposal function.  This is the exponential function selected#
+		#for sampling, above, for the selected area.#
+		x1 = new_envelope$x[A_idx]		#For calculation of value of tangent line at x_star.#
+		b =  new_envelope$b[A_idx]		#The slope for the calculation of the tangent line value at x_star.#
+		log_g = hp(x1,a) * x_star + b	#Value of piecewise linear envelope at x_star.#
+		g = exp(log_g)					#Value of piecewise exponential at x_star.#
+		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
+		#	If accept, then add x_star to fx_sample vector.#
+		#	If reject, then add x_star to x vector of points to sample, and start over.#
+		if (u <= f(x_star,a) / g){#
+			fx_sample = c(fx_sample,x_star)#
+			accepts = accepts + 1#
+		} else{#
+			x = c(x,x_star)#
+		}#
+	} #Start over for another sample until reach n tries.#
+	return(list(fx_sample=fx_sample,p_accept = accepts/n))#
+}
 #Set up original function fx, hx=logfx, and hpx=d/dx (hx).#
 f = function(x,a) x^a * (1-x)^a #for 0<x<1, a>0.#
 h = function(x,a) a*log(x) + a*log(1-x)#
 hp = function(x,a) a/x - a/(1-x)#
 #
 a = 2	#Set any arguments for f/h/hp outside the function.#
-x = c(.2,.4,.6) #Set initial vector of starting points.#
 #
-x=c(.25,.75)#
+#Call function.#
+fx_samp = adaptive_rej_sampling(f,h,hp,M,n=1000,c(.25,.75),xlb=0,xub=1)#
 #
-#Call function:#
-fx_samp = adaptive_rej_sampling(f,h,hp,M,n=1000,c(.25,.75),xlb=0,xub=.999)
+#fx_samp = adaptive_rej_sampling(f,h,hp,M,n=1000,c(.25,.75),xlb=-Inf,xub=Inf)#
+#
+#Plot results.#
+fx_samp$p_accept#
+hist(fx_samp$fx_sample,freq=F)#
+x=seq(0,1,by=.001)#
+lines(x,(1/beta(a+1,a+1))*f(x,a),col='blue')
+fx_samp$p_accept#
+hist(fx_samp$fx_sample,freq=F)#
+x=seq(0,1,by=.001)#
+lines(x,f(x,a),col='blue')
+adaptive_rej_sampling = function(f,h,hp,M,n=10,x,xlb=0,xub=1){#
+	#FUNCTION: Performs adaptive rejection sampling.#
+	##
+	#INPUTS:#
+	#	f = target function f(x).  Must be log-concave.#
+	#	h = log of target function, logf(x).#
+	#	hp = first derivative of log of target function, d/dx log(f(x))#
+	#	M = max of f(x).  (Must be a bounded function.)#
+	#	n = sample size.  (Returned sample will be lower size, bc some rejections.)#
+	#	x = vector of starting points.  Must be length 2 or longer.#
+	#	xlb = lower bound of domain for f(x).  Can be -Inf.#
+	#	xub = upper bound of domain for f(x).  Can be Inf.#
+	##
+	#OUTPUTS:#
+	#	fx_sample = vector of realizations sampled from f(x).#
+	#	p_accept = prob(acceptance); accepts/n.#
+	fx_sample = numeric() 	#Empty vector to store sampled values from fx.#
+	accepts = 0		#For tracking P(Acceptance).#
+#
+	for(ns in 1:n){#
+		#1. Update envelope: piecewise linear envelope in log-scale.#
+		new_envelope = update_envelope(x,h,hp,xlb,xub)#
+		#-----------------------#
+		#2. Calculate areas of piecewise exponential functions based on#
+		#exponentiating each tangent line over its range z_p to z_p+1.#
+		Areas = calculate_exp_areas(new_envelope)#
+		#-----------------------#
+		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
+		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
+		#A_idx = sample(1:length(Areas),size=1,replace=F)#
+		#-----------------------#
+		#4. Sample an x* from the truncated exponential distibution from selected area.#
+		hx = new_envelope$hx[A_idx]#
+		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
+		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
+		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
+#
+			#Note: we only know how to sample from exponential at zero.  We must do two things:#
+			#1. Check if slope hpx_star is +/-.#
+			#2. Adjust x* realization by shifting it.#
+#
+	#	if(hpx<0){#
+	#		x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+	#		x_star = z2 - x_star#
+	#	} else{#
+	#		x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+	#		x_star = z1 + x_star#
+	#	}#
+		if(hpx<0){#
+			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+			x_star = z1 + x_star#
+		} else{#
+			x_star = rtexp(n=1,m=-hpx,t=z2-z1)	#
+			x_star = z2 - x_star#
+		}#
+		#-----------------------#
+		#5. Acceptance test:#
+		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
+		#Set up the proposal function.  This is the exponential function selected#
+		#for sampling, above, for the selected area.#
+		x1 = new_envelope$x[A_idx]		#For calculation of value of tangent line at x_star.#
+		b =  new_envelope$b[A_idx]		#The slope for the calculation of the tangent line value at x_star.#
+		log_g = hp(x1,a) * x_star + b	#Value of piecewise linear envelope at x_star.#
+		g = exp(log_g)					#Value of piecewise exponential at x_star.#
+		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
+		#	If accept, then add x_star to fx_sample vector.#
+		#	If reject, then add x_star to x vector of points to sample, and start over.#
+		if (u <= f(x_star,a) / g){#
+			fx_sample = c(fx_sample,x_star)#
+			accepts = accepts + 1#
+		} else{#
+			x = c(x,x_star)#
+		}#
+	} #Start over for another sample until reach n tries.#
+	return(list(fx_sample=fx_sample,p_accept = accepts/n))#
+}
+#Call function.#
+fx_samp = adaptive_rej_sampling(f,h,hp,M,n=1000,c(.25,.75),xlb=0,xub=1)#
+#
+#fx_samp = adaptive_rej_sampling(f,h,hp,M,n=1000,c(.25,.75),xlb=-Inf,xub=Inf)#
+#
+#Plot results.#
+fx_samp$p_accept#
+hist(fx_samp$fx_sample,freq=F)#
+x=seq(0,1,by=.001)#
+lines(x,f(x,a),col='blue')
+adaptive_rej_sampling = function(f,h,hp,n=10,x,xlb=0,xub=1){#
+	#FUNCTION: Performs adaptive rejection sampling.#
+	##
+	#INPUTS:#
+	#	f = target function f(x).  Must be log-concave.#
+	#	h = log of target function, logf(x).#
+	#	hp = first derivative of log of target function, d/dx log(f(x))#
+	#	M = max of f(x).  (Must be a bounded function.)#
+	#	n = sample size.  (Returned sample will be lower size, bc some rejections.)#
+	#	x = vector of starting points.  Must be length 2 or longer.#
+	#	xlb = lower bound of domain for f(x).  Can be -Inf.#
+	#	xub = upper bound of domain for f(x).  Can be Inf.#
+	##
+	#OUTPUTS:#
+	#	fx_sample = vector of realizations sampled from f(x).#
+	#	p_accept = prob(acceptance); accepts/n.#
+	fx_sample = numeric() 	#Empty vector to store sampled values from fx.#
+	accepts = 0		#For tracking P(Acceptance).#
+#
+	for(ns in 1:n){#
+		#1. Update envelope: piecewise linear envelope in log-scale.#
+		new_envelope = update_envelope(x,h,hp,xlb,xub)#
+		#-----------------------#
+		#2. Calculate areas of piecewise exponential functions based on#
+		#exponentiating each tangent line over its range z_p to z_p+1.#
+		Areas = calculate_exp_areas(new_envelope)#
+		#-----------------------#
+		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
+		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
+		#A_idx = sample(1:length(Areas),size=1,replace=F)#
+		#-----------------------#
+		#4. Sample an x* from the truncated exponential distibution from selected area.#
+		hx = new_envelope$hx[A_idx]#
+		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
+		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
+		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
+#
+			#Note: we only know how to sample from exponential at zero.  We must do two things:#
+			#1. Check if slope hpx_star is +/-.#
+			#2. Adjust x* realization by shifting it.#
+#
+	#	if(hpx<0){#
+	#		x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+	#		x_star = z2 - x_star#
+	#	} else{#
+	#		x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+	#		x_star = z1 + x_star#
+	#	}#
+		if(hpx<0){#
+			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+			x_star = z1 + x_star#
+		} else{#
+			x_star = rtexp(n=1,m=-hpx,t=z2-z1)	#
+			x_star = z2 - x_star#
+		}#
+		#-----------------------#
+		#5. Acceptance test:#
+		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
+		#Set up the proposal function.  This is the exponential function selected#
+		#for sampling, above, for the selected area.#
+		x1 = new_envelope$x[A_idx]		#For calculation of value of tangent line at x_star.#
+		b =  new_envelope$b[A_idx]		#The slope for the calculation of the tangent line value at x_star.#
+		log_g = hp(x1,a) * x_star + b	#Value of piecewise linear envelope at x_star.#
+		g = exp(log_g)					#Value of piecewise exponential at x_star.#
+		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
+		#	If accept, then add x_star to fx_sample vector.#
+		#	If reject, then add x_star to x vector of points to sample, and start over.#
+		if (u <= f(x_star,a) / g){#
+			fx_sample = c(fx_sample,x_star)#
+			accepts = accepts + 1#
+		} else{#
+			x = c(x,x_star)#
+		}#
+	} #Start over for another sample until reach n tries.#
+	return(list(fx_sample=fx_sample,p_accept = accepts/n))#
+}
+f
+#Set up original function fx, hx=logfx, and hpx=d/dx (hx).#
+f = function(x,a) x^a * (1-x)^a #for 0<x<1, a>0.#
+h = function(x,a) a*log(x) + a*log(1-x)#
+hp = function(x,a) a/x - a/(1-x)#
+#
+a = 2	#Set any arguments for f/h/hp outside the function.#
+#
+#Call function.#
+fx_samp = adaptive_rej_sampling(f,h,hp,n=1000,c(.25,.75),xlb=0,xub=1)#
+#
+#fx_samp = adaptive_rej_sampling(f,h,hp,M,n=1000,c(.25,.75),xlb=-Inf,xub=Inf)#
+#
+#Plot results.#
+fx_samp$p_accept#
+hist(fx_samp$fx_sample,freq=F)#
+x=seq(0,1,by=.001)#
+lines(x,f(x,a),col='blue')
+rm(list=ls())
+adaptive_rej_sampling = function(f,h,hp,n=10,x,xlb=0,xub=1){#
+	#FUNCTION: Performs adaptive rejection sampling.#
+	##
+	#INPUTS:#
+	#	f = target function f(x).  Must be log-concave.#
+	#	h = log of target function, logf(x).#
+	#	hp = first derivative of log of target function, d/dx log(f(x))#
+	#	M = max of f(x).  (Must be a bounded function.)#
+	#	n = sample size.  (Returned sample will be lower size, bc some rejections.)#
+	#	x = vector of starting points.  Must be length 2 or longer.#
+	#	xlb = lower bound of domain for f(x).  Can be -Inf.#
+	#	xub = upper bound of domain for f(x).  Can be Inf.#
+	##
+	#OUTPUTS:#
+	#	fx_sample = vector of realizations sampled from f(x).#
+	#	p_accept = prob(acceptance); accepts/n.#
+	fx_sample = numeric() 	#Empty vector to store sampled values from fx.#
+	accepts = 0		#For tracking P(Acceptance).#
+#
+	for(ns in 1:n){#
+		#1. Update envelope: piecewise linear envelope in log-scale.#
+		new_envelope = update_envelope(x,h,hp,xlb,xub)#
+		#-----------------------#
+		#2. Calculate areas of piecewise exponential functions based on#
+		#exponentiating each tangent line over its range z_p to z_p+1.#
+		Areas = calculate_exp_areas(new_envelope)#
+		#-----------------------#
+		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
+		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
+		#A_idx = sample(1:length(Areas),size=1,replace=F)#
+		#-----------------------#
+		#4. Sample an x* from the truncated exponential distibution from selected area.#
+		hx = new_envelope$hx[A_idx]#
+		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
+		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
+		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
+#
+			#Note: we only know how to sample from exponential at zero.  We must do two things:#
+			#1. Check if slope hpx_star is +/-.#
+			#2. Adjust x* realization by shifting it.#
+#
+	#	if(hpx<0){#
+	#		x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+	#		x_star = z2 - x_star#
+	#	} else{#
+	#		x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+	#		x_star = z1 + x_star#
+	#	}#
+		if(hpx<0){#
+			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+			x_star = z1 + x_star#
+		} else{#
+			x_star = rtexp(n=1,m=-hpx,t=z2-z1)	#
+			x_star = z2 - x_star#
+		}#
+		#-----------------------#
+		#5. Acceptance test:#
+		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
+		#Set up the proposal function.  This is the exponential function selected#
+		#for sampling, above, for the selected area.#
+		x1 = new_envelope$x[A_idx]		#For calculation of value of tangent line at x_star.#
+		b =  new_envelope$b[A_idx]		#The slope for the calculation of the tangent line value at x_star.#
+		log_g = hp(x1,a) * x_star + b	#Value of piecewise linear envelope at x_star.#
+		g = exp(log_g)					#Value of piecewise exponential at x_star.#
+		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
+		#	If accept, then add x_star to fx_sample vector.#
+		#	If reject, then add x_star to x vector of points to sample, and start over.#
+		if (u <= f(x_star,a) / g){#
+			fx_sample = c(fx_sample,x_star)#
+			accepts = accepts + 1#
+		} else{#
+			x = c(x,x_star)#
+		}#
+	} #Start over for another sample until reach n tries.#
+	return(list(fx_sample=fx_sample,p_accept = accepts/n))#
+}
+#Set up original function fx, hx=logfx, and hpx=d/dx (hx).#
+f = function(x,a) x^a * (1-x)^a #for 0<x<1, a>0.#
+h = function(x,a) a*log(x) + a*log(1-x)#
+hp = function(x,a) a/x - a/(1-x)#
+#
+a = 2	#Set any arguments for f/h/hp outside the function.#
+#
+#Call function.#
+fx_samp = adaptive_rej_sampling(f,h,hp,n=1000,c(.25,.75),xlb=0,xub=1)
+update_envelope = function(x,h,hp,xlb,xub){#
+	#FUNCTION: Update piece-wise linear envelope of logf(x).#
+	##
+	#INPUTS:#
+	#	x = vector of points (unsorted)#
+	#	h = function for log(f(x)).#
+	#	hp = function for d/dx log(f(x)).#
+	#	xdomain = lower and upper bounds for x.#
+	##
+	#OUTPUTS:#
+	#	x = vector of points, sorted#
+	#	hx = h(x) = log(f(x)) values for each x.#
+	#	z = intersection points for tangents (in between each x value)#
+	#	m = slope for tangent lines.#
+	#	b = y-intercept for tangent lines#
+	x = sort(x)#
+	hx = h(x,a)		#Values of logf(x) at each x.#
+	hpx = hp(x,a)	#Slopes#
+#
+	m = hpx			#slopes#
+	b = hx - hpx*x	#intercepts#
+	#Calculate points where tangents meet.#
+	z = rep(0,length(x)-1)	#
+	for (i in 1:length(z)){#
+		z[i] = (hx[i+1] - hx[i] - x[i+1]*hpx[i+1] + x[i]*hpx[i]) / (hpx[i] - hpx[i+1])#
+	}#
+	z = c(xlb,z,xub)	#Add in bounds#
+	return(list(x=x,hx=hx,hpx=hpx,m=m,b=b,z=z))#
+}#
+#
+calculate_exp_areas = function(envelope){#
+	#FUNCTION: Calculate area for each part of piecewise#
+	#			exponential functions created by exponentiating #
+	#			piecewise linear envelope.#
+	#INPUTS:#
+	#	envelope: Takes in a piecewise linear envelope function, as created by#
+	#				update_envelope().#
+	#OUTPUTS:	#
+	#	areas: A vector of areas, A1 to Ak, where k = length(z).#
+	x = envelope$x	#Length of x is number of areas to calculate.#
+	z = envelope$z	#Extract z elements from envelope.#
+	hx = envelope$hx#
+	hpx = envelope$hpx				#
+	Areas = rep(0,length(x)) #Empty vector to hold areas.#
+	#Loop through areas.#
+	for (i in 1:length(Areas)){#
+		Areas[i] = (exp(hx[i] - hpx[i]*x[i]) / hpx[i]) * (exp(hpx[i]*z[i+1]) - exp(hpx[i]*z[i]))	#
+	}	#
+	return(Areas)#
+}#
+#
+rtexp = function(n,m,t){#
+	#PURPOSE: Draws n random samples from inverse cdf of truncated exponential.#
+	#n = number of samples.#
+	#m = rate#
+	#t = level of truncation; x value at which to truncate.#
+	u = runif(n)#
+	itex = -log(1-u*(1-exp(-t*m)))/m#
+	return(itex)#
+}#
+#
+#NOT USED.  Embedded in update_envelope function.#
+tangent_intersect = function(x1,x2,hx1,hx2,hpx1,hpx2){#
+	#PURPOSE: Returns x value where two tangent lines intersect.#
+	#x1, x2 = two points#
+	#hx1, hx2 = function values evaluated at x1 and x2 for some h(x).#
+	#hpx1,hpx2 = derivative values evaluated at x1 and x2 for h'(x).#
+	xtan = (hx2 - hx1 - hx2*hpx2 + x1*hpx1) / (hpx1-hpx2)#
+	return(xtan)#
+}#
+#
+#NOT USED.#
+itexp = function(u,m,t){#
+	#PURPOSE: Computes the inverse cdf for the truncated exponential at a specified quantile u.#
+	#u = quantile#
+	#m = rate#
+	#t = level of truncation; x value at which to truncate.#
+	return(-log(1-u*(1-exp(-t*m)))/m)#
+}
+fx_samp = adaptive_rej_sampling(f,h,hp,n=1000,c(.25,.75),xlb=0,xub=1)
+fx_samp$p_accept#
+hist(fx_samp$fx_sample,freq=F)#
+x=seq(0,1,by=.001)#
+lines(x,(1/beta(a+1,a+1))*f(x,a),col='blue')
+adaptive_rej_sampling = function(f,h,hp,n=10,x,xlb=0,xub=1){#
+	#FUNCTION: Performs adaptive rejection sampling.#
+	##
+	#INPUTS:#
+	#	f = target function f(x).  Must be log-concave.#
+	#	h = log of target function, logf(x).#
+	#	hp = first derivative of log of target function, d/dx log(f(x))#
+	#	M = max of f(x).  (Must be a bounded function.)#
+	#	n = sample size.  (Returned sample will be lower size, bc some rejections.)#
+	#	x = vector of starting points.  Must be length 2 or longer.#
+	#	xlb = lower bound of domain for f(x).  Can be -Inf.#
+	#	xub = upper bound of domain for f(x).  Can be Inf.#
+	##
+	#OUTPUTS:#
+	#	fx_sample = vector of realizations sampled from f(x).#
+	#	p_accept = prob(acceptance); accepts/n.#
+	fx_sample = numeric() 	#Empty vector to store sampled values from fx.#
+	accepts = 0		#For tracking P(Acceptance).#
+#
+	for(ns in 1:n){#
+		#1. Update envelope: piecewise linear envelope in log-scale.#
+		new_envelope = update_envelope(x,h,hp,xlb,xub)#
+		#-----------------------#
+		#2. Calculate areas of piecewise exponential functions based on#
+		#exponentiating each tangent line over its range z_p to z_p+1.#
+		Areas = calculate_exp_areas(new_envelope)#
+		#-----------------------#
+		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
+		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
+		#A_idx = sample(1:length(Areas),size=1,replace=F)#
+		#-----------------------#
+		#4. Sample an x* from the truncated exponential distibution from selected area.#
+		hx = new_envelope$hx[A_idx]#
+		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
+		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
+		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
+#
+			#Note: we only know how to sample from exponential at zero.  We must do two things:#
+			#1. Check if slope hpx_star is +/-.#
+			#2. Adjust x* realization by shifting it.#
+#
+	#	if(hpx<0){#
+	#		x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+	#		x_star = z2 - x_star#
+	#	} else{#
+	#		x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+	#		x_star = z1 + x_star#
+	#	}#
+		#Shift and rotate the exponential sample as needed.#
+		if(hpx<0){#
+			#If slope negative, generate using slope, and shift result.#
+			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+			x_star = z1 + x_star#
+		} else{#
+			#If slope positive, generate using -slope, and shift/flip result.#
+			x_star = rtexp(n=1,m=-hpx,t=z2-z1)	#
+			x_star = z2 - x_star#
+		}#
+		#-----------------------#
+		#5. Acceptance test:#
+		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
+		#Set up the proposal function.  This is the exponential function selected#
+		#for sampling, above, for the selected area.#
+		x1 = new_envelope$x[A_idx]		#For calculation of value of tangent line at x_star.#
+		b =  new_envelope$b[A_idx]		#The slope for the calculation of the tangent line value at x_star.#
+		log_g = hp(x1) * x_star + b	#Value of piecewise linear envelope at x_star.#
+		g = exp(log_g)					#Value of piecewise exponential at x_star.#
+		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
+		#	If accept, then add x_star to fx_sample vector.#
+		#	If reject, then add x_star to x vector of points to sample, and start over.#
+		if (u <= f(x_star,a) / g){#
+			fx_sample = c(fx_sample,x_star)#
+			accepts = accepts + 1#
+		} else{#
+			x = c(x,x_star)#
+		}#
+	} #Start over for another sample until reach n tries.#
+	return(list(fx_sample=fx_sample,p_accept = accepts/n))#
+}#
+#
+##############################
+###   HELPER FUNCTIONS:   ####
+##############################
+#
+update_envelope = function(x,h,hp,xlb,xub){#
+	#FUNCTION: Update piece-wise linear envelope of logf(x).#
+	##
+	#INPUTS:#
+	#	x = vector of points (unsorted)#
+	#	h = function for log(f(x)).#
+	#	hp = function for d/dx log(f(x)).#
+	#	xdomain = lower and upper bounds for x.#
+	##
+	#OUTPUTS:#
+	#	x = vector of points, sorted#
+	#	hx = h(x) = log(f(x)) values for each x.#
+	#	z = intersection points for tangents (in between each x value)#
+	#	m = slope for tangent lines.#
+	#	b = y-intercept for tangent lines#
+	x = sort(x)#
+	hx = h(x)	#Values of logf(x) at each x.#
+	hpx = hp(x)	#Slopes#
+#
+	m = hpx			#slopes#
+	b = hx - hpx*x	#intercepts#
+	#Calculate points where tangents meet.#
+	z = rep(0,length(x)-1)	#
+	for (i in 1:length(z)){#
+		z[i] = (hx[i+1] - hx[i] - x[i+1]*hpx[i+1] + x[i]*hpx[i]) / (hpx[i] - hpx[i+1])#
+	}#
+	z = c(xlb,z,xub)	#Add in bounds#
+	return(list(x=x,hx=hx,hpx=hpx,m=m,b=b,z=z))#
+}#
+#
+calculate_exp_areas = function(envelope){#
+	#FUNCTION: Calculate area for each part of piecewise#
+	#			exponential functions created by exponentiating #
+	#			piecewise linear envelope.#
+	#INPUTS:#
+	#	envelope: Takes in a piecewise linear envelope function, as created by#
+	#				update_envelope().#
+	#OUTPUTS:	#
+	#	areas: A vector of areas, A1 to Ak, where k = length(z).#
+	x = envelope$x	#Length of x is number of areas to calculate.#
+	z = envelope$z	#Extract z elements from envelope.#
+	hx = envelope$hx#
+	hpx = envelope$hpx				#
+	Areas = rep(0,length(x)) #Empty vector to hold areas.#
+	#Loop through areas.#
+	for (i in 1:length(Areas)){#
+		Areas[i] = (exp(hx[i] - hpx[i]*x[i]) / hpx[i]) * (exp(hpx[i]*z[i+1]) - exp(hpx[i]*z[i]))	#
+	}	#
+	return(Areas)#
+}#
+#
+rtexp = function(n,m,t){#
+	#PURPOSE: Draws n random samples from inverse cdf of truncated exponential.#
+	#n = number of samples.#
+	#m = rate#
+	#t = level of truncation; x value at which to truncate.#
+	u = runif(n)#
+	itex = -log(1-u*(1-exp(-t*m)))/m#
+	return(itex)#
+}#
+#
+#NOT USED.  Embedded in update_envelope function.#
+tangent_intersect = function(x1,x2,hx1,hx2,hpx1,hpx2){#
+	#PURPOSE: Returns x value where two tangent lines intersect.#
+	#x1, x2 = two points#
+	#hx1, hx2 = function values evaluated at x1 and x2 for some h(x).#
+	#hpx1,hpx2 = derivative values evaluated at x1 and x2 for h'(x).#
+	xtan = (hx2 - hx1 - hx2*hpx2 + x1*hpx1) / (hpx1-hpx2)#
+	return(xtan)#
+}#
+#
+#NOT USED.#
+itexp = function(u,m,t){#
+	#PURPOSE: Computes the inverse cdf for the truncated exponential at a specified quantile u.#
+	#u = quantile#
+	#m = rate#
+	#t = level of truncation; x value at which to truncate.#
+	return(-log(1-u*(1-exp(-t*m)))/m)#
+}
+#f = function that computes log(f(u)) where f(u) is proportional to density we want to sample from#
+f = f#
+#
+#fprima = d/du log(f(u))#
+fprima = h#
+#
+#xlb and xub = lower bound and upper bound of x values#
+xlb = -Inf#
+xub = Inf#
+#
+fx = ars(n=1000,f,fprima,x=c(.1,7),m=3,lb=T,xlb=0,ub=T,xub=1) #x = starting points where log(f(u)) defined.#
+#
+#Plot results:#
+hist(fx,freq=F)
+library(ars)
+#f = function that computes log(f(u)) where f(u) is proportional to density we want to sample from#
+f = f#
+#
+#fprima = d/du log(f(u))#
+fprima = h#
+#
+#xlb and xub = lower bound and upper bound of x values#
+xlb = -Inf#
+xub = Inf#
+#
+fx = ars(n=1000,f,fprima,x=c(.1,7),m=3,lb=T,xlb=0,ub=T,xub=1) #x = starting points where log(f(u)) defined.#
+#
+#Plot results:#
+hist(fx,freq=F)
+fx = ars(n=1000,f,fprima,x=c(.1,7),m=3,lb=T,xlb=0,ub=T,xub=1)
+#Set up original function fx, hx=logfx, and hpx=d/dx (hx).#
+f  = function(x) x^3 * exp(-2*x) * (1-exp(-2*x))^3#
+h  = function(x) 3*log(x) - 2*x + 3*log(1-exp(-2*x))#
+hp = function(x) 3/x - 2 + 6/(exp(2*x)-1)#
+#
+#Inspect log-concave h for good starting points.#
+x = seq(-10,10,by=.01)#
+hx = h(x)#
+plot(x,hx,type='l',col='blue')#
+#
+#Call function.#
+fx_samp = adaptive_rej_sampling(f,h,hp,n=1000,c(.1,7),xlb=-Inf,xub=Inf)
+pdf(file='/Users/jennstarling/UTAustin/2017S_MCMC/Exercises/Exercise-04/Problem_1_ARS.pdf')#
+fx_samp$p_accept#
+hist(fx_samp$fx_sample,freq=F,main='Adaptive Rejection Sampling',xlab='Samples of f(x)')#
+x=seq(0,10,by=.001)#
+lines(x,3*f(x),col='blue')
+pdf(file='/Users/jennstarling/UTAustin/2017S_MCMC/Exercises/Exercise-04/Problem_1_ARS.pdf')#
+fx_samp$p_accept#
+hist(fx_samp$fx_sample,freq=F,main='Adaptive Rejection Sampling',xlab='Samples of f(x)')#
+x=seq(0,10,by=.001)#
+lines(x,3*f(x),col='blue')#
+dev.off()
+rm(list=ls())
+#Set up original function fx, hx=logfx, and hpx=d/dx (hx).#
+f  = function(x) x^3 * exp(-2*x) * (1-exp(-2*x))^3#
+h  = function(x) 3*log(x) - 2*x + 3*log(1-exp(-2*x))#
+hp = function(x) 3/x - 2 + 6/(exp(2*x)-1)#
+#
+#Inspect log-concave h for good starting points.#
+x = seq(-10,10,by=.01)#
+hx = h(x)#
+plot(x,hx,type='l',col='blue')
+#Set up original function fx, hx=logfx, and hpx=d/dx (hx).#
+f  = function(x) x^3 * exp(-2*x) * (1-exp(-2*x))^3#
+h  = function(x) 3*log(x) - 2*x + 3*log(1-exp(-2*x))#
+hp = function(x) 3/x - 2 + 6/(exp(2*x)-1)#
+#
+#Inspect log-concave h for good starting points.#
+x = seq(0,10,by=.01)#
+hx = h(x)
+plot(x,hx,type='l',col='blue')
+plot(x,hx,type='l',col='blue')
+#Set up original function fx, hx=logfx, and hpx=d/dx (hx).#
+f  = function(x) x^3 * exp(-2*x) * (1-exp(-2*x))^3#
+h  = function(x) 3*log(x) - 2*x + 3*log(1-exp(-2*x))#
+hp = function(x) 3/x - 2 + 6/(exp(2*x)-1)#
+#
+#Inspect log-concave h for good starting points.#
+x = seq(0,10,by=.01)#
+hx = h(x)#
+plot(x,hx,type='l',col='blue')
+dev.off()
+#Set up original function fx, hx=logfx, and hpx=d/dx (hx).#
+f  = function(x) x^3 * exp(-2*x) * (1-exp(-2*x))^3#
+h  = function(x) 3*log(x) - 2*x + 3*log(1-exp(-2*x))#
+hp = function(x) 3/x - 2 + 6/(exp(2*x)-1)#
+#
+#Inspect log-concave h for good starting points.#
+x = seq(0,10,by=.01)#
+hx = h(x)#
+plot(x,hx,type='l',col='blue')
+#Call function.#
+fx_samp = adaptive_rej_sampling(f,h,hp,n=1000,c(.1,7),xlb=0,xub=Inf)#
+#
+#Plot results.#
+pdf(file='/Users/jennstarling/UTAustin/2017S_MCMC/Exercises/Exercise-04/Problem_1_ARS.pdf')#
+fx_samp$p_accept#
+hist(fx_samp$fx_sample,freq=F,main='Adaptive Rejection Sampling',xlab='Samples of f(x)')#
+x=seq(0,10,by=.001)#
+lines(x,3*f(x),col='blue')#
+dev.off()
+adaptive_rej_sampling = function(f,h,hp,n=10,x,xlb=0,xub=1){#
+	#FUNCTION: Performs adaptive rejection sampling.#
+	##
+	#INPUTS:#
+	#	f = target function f(x).  Must be log-concave.#
+	#	h = log of target function, logf(x).#
+	#	hp = first derivative of log of target function, d/dx log(f(x))#
+	#	M = max of f(x).  (Must be a bounded function.)#
+	#	n = sample size.  (Returned sample will be lower size, bc some rejections.)#
+	#	x = vector of starting points.  Must be length 2 or longer.#
+	#	xlb = lower bound of domain for f(x).  Can be -Inf.#
+	#	xub = upper bound of domain for f(x).  Can be Inf.#
+	##
+	#OUTPUTS:#
+	#	fx_sample = vector of realizations sampled from f(x).#
+	#	p_accept = prob(acceptance); accepts/n.#
+	fx_sample = numeric() 	#Empty vector to store sampled values from fx.#
+	accepts = 0		#For tracking P(Acceptance).#
+#
+	for(ns in 1:n){#
+		#1. Update envelope: piecewise linear envelope in log-scale.#
+		new_envelope = update_envelope(x,h,hp,xlb,xub)#
+		#-----------------------#
+		#2. Calculate areas of piecewise exponential functions based on#
+		#exponentiating each tangent line over its range z_p to z_p+1.#
+		Areas = calculate_exp_areas(new_envelope)#
+		#-----------------------#
+		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
+		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
+		#A_idx = sample(1:length(Areas),size=1,replace=F)#
+		#-----------------------#
+		#4. Sample an x* from the truncated exponential distibution from selected area.#
+		hx = new_envelope$hx[A_idx]#
+		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
+		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
+		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
+#
+			#Note: we only know how to sample from exponential at zero.  We must do two things:#
+			#1. Check if slope hpx_star is +/-.#
+			#2. Adjust x* realization by shifting it.#
+#
+	#	if(hpx<0){#
+	#		x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+	#		x_star = z2 - x_star#
+	#	} else{#
+	#		x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+	#		x_star = z1 + x_star#
+	#	}#
+		#Shift and rotate the exponential sample as needed.#
+		if(hpx<0){#
+			#If slope negative, generate using slope, and shift result.#
+			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+			x_star = z1 + x_star#
+		} else{#
+			#If slope positive, generate using -slope, and shift/flip result.#
+			x_star = rtexp(n=1,m=-hpx,t=z2-z1)	#
+			x_star = z2 - x_star#
+		}#
+		#-----------------------#
+		#5. Acceptance test:#
+		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
+		#Set up the proposal function.  This is the exponential function selected#
+		#for sampling, above, for the selected area.#
+		x1 = new_envelope$x[A_idx]		#For calculation of value of tangent line at x_star.#
+		b =  new_envelope$b[A_idx]		#The slope for the calculation of the tangent line value at x_star.#
+		log_g = hp(x1) * x_star + b	#Value of piecewise linear envelope at x_star.#
+		g = exp(log_g)					#Value of piecewise exponential at x_star.#
+		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
+		#	If accept, then add x_star to fx_sample vector.#
+		#	If reject, then add x_star to x vector of points to sample, and start over.#
+		if (u <= f(x_star,a) / g){#
+			fx_sample = c(fx_sample,x_star)#
+			accepts = accepts + 1#
+		} else{#
+			x = c(x,x_star)#
+		}#
+	} #Start over for another sample until reach n tries.#
+	return(list(fx_sample=fx_sample,p_accept = accepts/n))#
+}#
+#
+##############################
+###   HELPER FUNCTIONS:   ####
+##############################
+#
+update_envelope = function(x,h,hp,xlb,xub){#
+	#FUNCTION: Update piece-wise linear envelope of logf(x).#
+	##
+	#INPUTS:#
+	#	x = vector of points (unsorted)#
+	#	h = function for log(f(x)).#
+	#	hp = function for d/dx log(f(x)).#
+	#	xdomain = lower and upper bounds for x.#
+	##
+	#OUTPUTS:#
+	#	x = vector of points, sorted#
+	#	hx = h(x) = log(f(x)) values for each x.#
+	#	z = intersection points for tangents (in between each x value)#
+	#	m = slope for tangent lines.#
+	#	b = y-intercept for tangent lines#
+	x = sort(x)#
+	hx = h(x)	#Values of logf(x) at each x.#
+	hpx = hp(x)	#Slopes#
+#
+	m = hpx			#slopes#
+	b = hx - hpx*x	#intercepts#
+	#Calculate points where tangents meet.#
+	z = rep(0,length(x)-1)	#
+	for (i in 1:length(z)){#
+		z[i] = (hx[i+1] - hx[i] - x[i+1]*hpx[i+1] + x[i]*hpx[i]) / (hpx[i] - hpx[i+1])#
+	}#
+	z = c(xlb,z,xub)	#Add in bounds#
+	return(list(x=x,hx=hx,hpx=hpx,m=m,b=b,z=z))#
+}#
+#
+calculate_exp_areas = function(envelope){#
+	#FUNCTION: Calculate area for each part of piecewise#
+	#			exponential functions created by exponentiating #
+	#			piecewise linear envelope.#
+	#INPUTS:#
+	#	envelope: Takes in a piecewise linear envelope function, as created by#
+	#				update_envelope().#
+	#OUTPUTS:	#
+	#	areas: A vector of areas, A1 to Ak, where k = length(z).#
+	x = envelope$x	#Length of x is number of areas to calculate.#
+	z = envelope$z	#Extract z elements from envelope.#
+	hx = envelope$hx#
+	hpx = envelope$hpx				#
+	Areas = rep(0,length(x)) #Empty vector to hold areas.#
+	#Loop through areas.#
+	for (i in 1:length(Areas)){#
+		Areas[i] = (exp(hx[i] - hpx[i]*x[i]) / hpx[i]) * (exp(hpx[i]*z[i+1]) - exp(hpx[i]*z[i]))	#
+	}	#
+	return(Areas)#
+}#
+#
+rtexp = function(n,m,t){#
+	#PURPOSE: Draws n random samples from inverse cdf of truncated exponential.#
+	#n = number of samples.#
+	#m = rate#
+	#t = level of truncation; x value at which to truncate.#
+	u = runif(n)#
+	itex = -log(1-u*(1-exp(-t*m)))/m#
+	return(itex)#
+}#
+#
+#NOT USED.  Embedded in update_envelope function.#
+tangent_intersect = function(x1,x2,hx1,hx2,hpx1,hpx2){#
+	#PURPOSE: Returns x value where two tangent lines intersect.#
+	#x1, x2 = two points#
+	#hx1, hx2 = function values evaluated at x1 and x2 for some h(x).#
+	#hpx1,hpx2 = derivative values evaluated at x1 and x2 for h'(x).#
+	xtan = (hx2 - hx1 - hx2*hpx2 + x1*hpx1) / (hpx1-hpx2)#
+	return(xtan)#
+}#
+#
+#NOT USED.#
+itexp = function(u,m,t){#
+	#PURPOSE: Computes the inverse cdf for the truncated exponential at a specified quantile u.#
+	#u = quantile#
+	#m = rate#
+	#t = level of truncation; x value at which to truncate.#
+	return(-log(1-u*(1-exp(-t*m)))/m)#
+}
+fx_samp = adaptive_rej_sampling(f,h,hp,n=1000,c(.1,7),xlb=0,xub=Inf)#
+#
+#Plot results.#
+pdf(file='/Users/jennstarling/UTAustin/2017S_MCMC/Exercises/Exercise-04/Problem_1_ARS.pdf')#
+fx_samp$p_accept#
+hist(fx_samp$fx_sample,freq=F,main='Adaptive Rejection Sampling',xlab='Samples of f(x)')#
+x=seq(0,10,by=.001)#
+lines(x,3*f(x),col='blue')
+adaptive_rej_sampling = function(f,h,hp,n=10,x,xlb=0,xub=1){#
+	#FUNCTION: Performs adaptive rejection sampling.#
+	##
+	#INPUTS:#
+	#	f = target function f(x).  Must be log-concave.#
+	#	h = log of target function, logf(x).#
+	#	hp = first derivative of log of target function, d/dx log(f(x))#
+	#	M = max of f(x).  (Must be a bounded function.)#
+	#	n = sample size.  (Returned sample will be lower size, bc some rejections.)#
+	#	x = vector of starting points.  Must be length 2 or longer.#
+	#	xlb = lower bound of domain for f(x).  Can be -Inf.#
+	#	xub = upper bound of domain for f(x).  Can be Inf.#
+	##
+	#OUTPUTS:#
+	#	fx_sample = vector of realizations sampled from f(x).#
+	#	p_accept = prob(acceptance); accepts/n.#
+	fx_sample = numeric() 	#Empty vector to store sampled values from fx.#
+	accepts = 0		#For tracking P(Acceptance).#
+#
+	for(ns in 1:n){#
+		#1. Update envelope: piecewise linear envelope in log-scale.#
+		new_envelope = update_envelope(x,h,hp,xlb,xub)#
+		#-----------------------#
+		#2. Calculate areas of piecewise exponential functions based on#
+		#exponentiating each tangent line over its range z_p to z_p+1.#
+		Areas = calculate_exp_areas(new_envelope)#
+		#-----------------------#
+		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
+		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
+		#A_idx = sample(1:length(Areas),size=1,replace=F)#
+		#-----------------------#
+		#4. Sample an x* from the truncated exponential distibution from selected area.#
+		hx = new_envelope$hx[A_idx]#
+		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
+		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
+		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
+#
+			#Note: we only know how to sample from exponential at zero.  We must do two things:#
+			#1. Check if slope hpx_star is +/-.#
+			#2. Adjust x* realization by shifting it.#
+#
+	#	if(hpx<0){#
+	#		x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+	#		x_star = z2 - x_star#
+	#	} else{#
+	#		x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+	#		x_star = z1 + x_star#
+	#	}#
+		#Shift and rotate the exponential sample as needed.#
+		if(hpx<0){#
+			#If slope negative, generate using slope, and shift result.#
+			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+			x_star = z1 + x_star#
+		} else{#
+			#If slope positive, generate using -slope, and shift/flip result.#
+			x_star = rtexp(n=1,m=-hpx,t=z2-z1)	#
+			x_star = z2 - x_star#
+		}#
+		#-----------------------#
+		#5. Acceptance test:#
+		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
+		#Set up the proposal function.  This is the exponential function selected#
+		#for sampling, above, for the selected area.#
+		x1 = new_envelope$x[A_idx]		#For calculation of value of tangent line at x_star.#
+		b =  new_envelope$b[A_idx]		#The slope for the calculation of the tangent line value at x_star.#
+		log_g = hp(x1) * x_star + b	#Value of piecewise linear envelope at x_star.#
+		g = exp(log_g)					#Value of piecewise exponential at x_star.#
+		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
+		#	If accept, then add x_star to fx_sample vector.#
+		#	If reject, then add x_star to x vector of points to sample, and start over.#
+		if (u <= f(x_star) / g){#
+			fx_sample = c(fx_sample,x_star)#
+			accepts = accepts + 1#
+		} else{#
+			x = c(x,x_star)#
+		}#
+	} #Start over for another sample until reach n tries.#
+	return(list(fx_sample=fx_sample,p_accept = accepts/n))#
+}
+fx_samp = adaptive_rej_sampling(f,h,hp,n=1000,c(.1,7),xlb=0,xub=Inf)
+adaptive_rej_sampling = function(f,h,hp,n=10,x,xlb=0,xub=1){#
+	#FUNCTION: Performs adaptive rejection sampling.#
+	##
+	#INPUTS:#
+	#	f = target function f(x).  Must be log-concave.#
+	#	h = log of target function, logf(x).#
+	#	hp = first derivative of log of target function, d/dx log(f(x))#
+	#	M = max of f(x).  (Must be a bounded function.)#
+	#	n = sample size.  (Returned sample will be lower size, bc some rejections.)#
+	#	x = vector of starting points.  Must be length 2 or longer.#
+	#	xlb = lower bound of domain for f(x).  Can be -Inf.#
+	#	xub = upper bound of domain for f(x).  Can be Inf.#
+	##
+	#OUTPUTS:#
+	#	fx_sample = vector of realizations sampled from f(x).#
+	#	p_accept = prob(acceptance); accepts/n.#
+	fx_sample = numeric() 	#Empty vector to store sampled values from fx.#
+	accepts = 0		#For tracking P(Acceptance).#
+#
+	for(ns in 1:n){#
+		#1. Update envelope: piecewise linear envelope in log-scale.#
+		new_envelope = update_envelope(x,h,hp,xlb,xub)#
+		#-----------------------#
+		#2. Calculate areas of piecewise exponential functions based on#
+		#exponentiating each tangent line over its range z_p to z_p+1.#
+		Areas = calculate_exp_areas(new_envelope)#
+		#-----------------------#
+		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
+		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
+		#A_idx = sample(1:length(Areas),size=1,replace=F)#
+		#-----------------------#
+		#4. Sample an x* from the truncated exponential distibution from selected area.#
+		hx = new_envelope$hx[A_idx]#
+		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
+		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
+		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
+#
+			#Note: we only know how to sample from exponential at zero.  We must do two things:#
+			#1. Check if slope hpx_star is +/-.#
+			#2. Adjust x* realization by shifting it.#
+#
+	#	if(hpx<0){#
+	#		x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+	#		x_star = z2 - x_star#
+	#	} else{#
+	#		x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+	#		x_star = z1 + x_star#
+	#	}#
+		#Shift and rotate the exponential sample as needed.#
+		if(hpx<0){#
+			#If slope negative, generate using slope, and shift result.#
+			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+			x_star = z1 + x_star#
+		} else{#
+			#If slope positive, generate using -slope, and shift/flip result.#
+			x_star = rtexp(n=1,m=-hpx,t=-(z1-z2))	#
+			x_star = z2 - x_star#
+		}#
+		#-----------------------#
+		#5. Acceptance test:#
+		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
+		#Set up the proposal function.  This is the exponential function selected#
+		#for sampling, above, for the selected area.#
+		x1 = new_envelope$x[A_idx]		#For calculation of value of tangent line at x_star.#
+		b =  new_envelope$b[A_idx]		#The slope for the calculation of the tangent line value at x_star.#
+		log_g = hp(x1) * x_star + b	#Value of piecewise linear envelope at x_star.#
+		g = exp(log_g)					#Value of piecewise exponential at x_star.#
+		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
+		#	If accept, then add x_star to fx_sample vector.#
+		#	If reject, then add x_star to x vector of points to sample, and start over.#
+		if (u <= f(x_star) / g){#
+			fx_sample = c(fx_sample,x_star)#
+			accepts = accepts + 1#
+		} else{#
+			x = c(x,x_star)#
+		}#
+	} #Start over for another sample until reach n tries.#
+	return(list(fx_sample=fx_sample,p_accept = accepts/n))#
+}
+#Set up original function fx, hx=logfx, and hpx=d/dx (hx).#
+f  = function(x) x^3 * exp(-2*x) * (1-exp(-2*x))^3#
+h  = function(x) 3*log(x) - 2*x + 3*log(1-exp(-2*x))#
+hp = function(x) 3/x - 2 + 6/(exp(2*x)-1)#
+#
+#Inspect log-concave h for good starting points.#
+x = seq(0,10,by=.01)#
+hx = h(x)#
+plot(x,hx,type='l',col='blue')#
+#
+#Call function.#
+fx_samp = adaptive_rej_sampling(f,h,hp,n=1000,c(.1,7),xlb=0,xub=Inf)#
+#
+#Plot results.#
+pdf(file='/Users/jennstarling/UTAustin/2017S_MCMC/Exercises/Exercise-04/Problem_1_ARS.pdf')#
+fx_samp$p_accept#
+hist(fx_samp$fx_sample,freq=F,main='Adaptive Rejection Sampling',xlab='Samples of f(x)')#
+x=seq(0,10,by=.001)#
+lines(x,3*f(x),col='blue')#
+dev.off()
+rm(list=ls())
+adaptive_rej_sampling = function(f,h,hp,n=10,x,xlb=0,xub=1){#
+	#FUNCTION: Performs adaptive rejection sampling.#
+	##
+	#INPUTS:#
+	#	f = target function f(x).  Must be log-concave.#
+	#	h = log of target function, logf(x).#
+	#	hp = first derivative of log of target function, d/dx log(f(x))#
+	#	M = max of f(x).  (Must be a bounded function.)#
+	#	n = sample size.  (Returned sample will be lower size, bc some rejections.)#
+	#	x = vector of starting points.  Must be length 2 or longer.#
+	#	xlb = lower bound of domain for f(x).  Can be -Inf.#
+	#	xub = upper bound of domain for f(x).  Can be Inf.#
+	##
+	#OUTPUTS:#
+	#	fx_sample = vector of realizations sampled from f(x).#
+	#	p_accept = prob(acceptance); accepts/n.#
+	fx_sample = numeric() 	#Empty vector to store sampled values from fx.#
+	accepts = 0		#For tracking P(Acceptance).#
+#
+	for(ns in 1:n){#
+		#1. Update envelope: piecewise linear envelope in log-scale.#
+		new_envelope = update_envelope(x,h,hp,xlb,xub)#
+		#-----------------------#
+		#2. Calculate areas of piecewise exponential functions based on#
+		#exponentiating each tangent line over its range z_p to z_p+1.#
+		Areas = calculate_exp_areas(new_envelope)#
+		#-----------------------#
+		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
+		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
+		#A_idx = sample(1:length(Areas),size=1,replace=F)#
+		#-----------------------#
+		#4. Sample an x* from the truncated exponential distibution from selected area.#
+		hx = new_envelope$hx[A_idx]#
+		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
+		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
+		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
+#
+			#Note: we only know how to sample from exponential at zero.  We must do two things:#
+			#1. Check if slope hpx_star is +/-.#
+			#2. Adjust x* realization by shifting it.#
+#
+	#	if(hpx<0){#
+	#		x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+	#		x_star = z2 - x_star#
+	#	} else{#
+	#		x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+	#		x_star = z1 + x_star#
+	#	}#
+		#Shift and rotate the exponential sample as needed.#
+		if(hpx<0){#
+			#If slope negative, generate using slope, and shift result.#
+			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+			x_star = z1 + x_star#
+		} else{#
+			#If slope positive, generate using -slope, and shift/flip result.#
+			x_star = rtexp(n=1,m=-hpx,t=-(z1-z2))	#
+			x_star = z2 - x_star#
+		}#
+		#-----------------------#
+		#5. Acceptance test:#
+		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
+		#Set up the proposal function.  This is the exponential function selected#
+		#for sampling, above, for the selected area.#
+		x1 = new_envelope$x[A_idx]		#For calculation of value of tangent line at x_star.#
+		b =  new_envelope$b[A_idx]		#The slope for the calculation of the tangent line value at x_star.#
+		log_g = hp(x1) * x_star + b	#Value of piecewise linear envelope at x_star.#
+		g = exp(log_g)					#Value of piecewise exponential at x_star.#
+		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
+		#	If accept, then add x_star to fx_sample vector.#
+		#	If reject, then add x_star to x vector of points to sample, and start over.#
+		if (u <= f(x_star) / g){#
+			fx_sample = c(fx_sample,x_star)#
+			accepts = accepts + 1#
+		} else{#
+			x = c(x,x_star)#
+		}#
+	} #Start over for another sample until reach n tries.#
+	return(list(fx_sample=fx_sample,p_accept = accepts/n))#
+}#
+#
+##############################
+###   HELPER FUNCTIONS:   ####
+##############################
+#
+update_envelope = function(x,h,hp,xlb,xub){#
+	#FUNCTION: Update piece-wise linear envelope of logf(x).#
+	##
+	#INPUTS:#
+	#	x = vector of points (unsorted)#
+	#	h = function for log(f(x)).#
+	#	hp = function for d/dx log(f(x)).#
+	#	xdomain = lower and upper bounds for x.#
+	##
+	#OUTPUTS:#
+	#	x = vector of points, sorted#
+	#	hx = h(x) = log(f(x)) values for each x.#
+	#	z = intersection points for tangents (in between each x value)#
+	#	m = slope for tangent lines.#
+	#	b = y-intercept for tangent lines#
+	x = sort(x)#
+	hx = h(x)	#Values of logf(x) at each x.#
+	hpx = hp(x)	#Slopes#
+#
+	m = hpx			#slopes#
+	b = hx - hpx*x	#intercepts#
+	#Calculate points where tangents meet.#
+	z = rep(0,length(x)-1)	#
+	for (i in 1:length(z)){#
+		z[i] = (hx[i+1] - hx[i] - x[i+1]*hpx[i+1] + x[i]*hpx[i]) / (hpx[i] - hpx[i+1])#
+	}#
+	z = c(xlb,z,xub)	#Add in bounds#
+	return(list(x=x,hx=hx,hpx=hpx,m=m,b=b,z=z))#
+}#
+#
+calculate_exp_areas = function(envelope){#
+	#FUNCTION: Calculate area for each part of piecewise#
+	#			exponential functions created by exponentiating #
+	#			piecewise linear envelope.#
+	#INPUTS:#
+	#	envelope: Takes in a piecewise linear envelope function, as created by#
+	#				update_envelope().#
+	#OUTPUTS:	#
+	#	areas: A vector of areas, A1 to Ak, where k = length(z).#
+	x = envelope$x	#Length of x is number of areas to calculate.#
+	z = envelope$z	#Extract z elements from envelope.#
+	hx = envelope$hx#
+	hpx = envelope$hpx				#
+	Areas = rep(0,length(x)) #Empty vector to hold areas.#
+	#Loop through areas.#
+	for (i in 1:length(Areas)){#
+		Areas[i] = (exp(hx[i] - hpx[i]*x[i]) / hpx[i]) * (exp(hpx[i]*z[i+1]) - exp(hpx[i]*z[i]))	#
+	}	#
+	return(Areas)#
+}#
+#
+rtexp = function(n,m,t){#
+	#PURPOSE: Draws n random samples from inverse cdf of truncated exponential.#
+	#n = number of samples.#
+	#m = rate#
+	#t = level of truncation; x value at which to truncate.#
+	u = runif(n)#
+	itex = -log(1-u*(1-exp(-t*m)))/m#
+	return(itex)#
+}#
+#
+#NOT USED.  Embedded in update_envelope function.#
+tangent_intersect = function(x1,x2,hx1,hx2,hpx1,hpx2){#
+	#PURPOSE: Returns x value where two tangent lines intersect.#
+	#x1, x2 = two points#
+	#hx1, hx2 = function values evaluated at x1 and x2 for some h(x).#
+	#hpx1,hpx2 = derivative values evaluated at x1 and x2 for h'(x).#
+	xtan = (hx2 - hx1 - hx2*hpx2 + x1*hpx1) / (hpx1-hpx2)#
+	return(xtan)#
+}#
+#
+#NOT USED.#
+itexp = function(u,m,t){#
+	#PURPOSE: Computes the inverse cdf for the truncated exponential at a specified quantile u.#
+	#u = quantile#
+	#m = rate#
+	#t = level of truncation; x value at which to truncate.#
+	return(-log(1-u*(1-exp(-t*m)))/m)#
+}
+#Set up original function fx, hx=logfx, and hpx=d/dx (hx).#
+f  = function(x) x^3 * exp(-2*x) * (1-exp(-2*x))^3#
+h  = function(x) 3*log(x) - 2*x + 3*log(1-exp(-2*x))#
+hp = function(x) 3/x - 2 + 6/(exp(2*x)-1)#
+#
+#Inspect log-concave h for good starting points.#
+x = seq(0,10,by=.01)#
+hx = h(x)#
+plot(x,hx,type='l',col='blue')#
+#
+#Call function.#
+fx_samp = adaptive_rej_sampling(f,h,hp,n=1000,c(.1,7),xlb=0,xub=Inf)
+n=10
+x=c(.1,7)
+xlb=0
+xub=Inf
 xub
-xub=.999
-fx_samp = adaptive_rej_sampling(f,h,hp,M,n=1000,c(.25,.75),xlb=.001,xub=.999)
-fx_sample = numeric() 	#Empty vector to store sampled values from fx.#
-	accepts = 0		#For tracking P(Acceptance).
+#Call function.#
+fx_samp = adaptive_rej_sampling(f,h,hp,n=1000,c(.1,7),xlb=-Inf,xub=Inf)
+x
+h
 #1. Update envelope: piecewise linear envelope in log-scale.#
 		new_envelope = update_envelope(x,h,hp,xlb,xub)#
 		#-----------------------#
@@ -124,103 +2451,24 @@ fx_sample = numeric() 	#Empty vector to store sampled values from fx.#
 		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
 		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
 		#A_idx = sample(1:length(Areas),size=1,replace=F)
-Areas
-new_envelope
 A_idx
-#4. Sample an x* from the truncated exponential distibution from selected area.#
-		hx = new_envelope$hx[A_idx]#
+new_envelope
+hx = new_envelope$hx[A_idx]#
 		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
 		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
-		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
-#
-			#Note: we only know how to sample from exponential at zero.  We must do two things:#
-			#1. Check if slope hpx_star is +/-.#
-			#2. Adjust x* realization by shifting it.#
-#
-		if(hpx<0){#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = -(x_star + z2)	#
-		} else{#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = x_star + z2#
-		}#
-#		x_star = rtexp(n=1,m=hpx,t=z2-z1)	#Truncate at z2-z1, since shifted so z1=0.#
-#		x_star = ifelse(hpx<0,	#Test if slope is negative.#
-#			z1 - x_star,	#If slope neg, flip: x* ~ Exp(hpx), then xstar = z1-x*#
-#			x_star + z1)	#If slope not neg, just shift: x* ~ Exp(hpx), then xstar = z1 + x*
+		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.
+z1
+z2
+hpx
+hpx<0
+x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+			x_star = z1 + x_star
 x_star
-#5. Acceptance test:#
-		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
-		#Set up the proposal function.  This is the exponential function selected#
-		#for sampling, above, for the selected area.#
-		x1 = new_envelope$x[A_idx]	#For calculation of value of tangent line at x_star.#
-			#b =  new_envelope$b[A_idx]	#The slope for the calculation of the tangent line value at x_star.#
-		log_g = hp(x1,a) * x_star + h(x1,a) - hp(x1,a)*x1	#Value of piecewise linear envelope at x_star.
-g = exp(log_g)
-log_g
-if (u <= f(x_star,a) / g){#
-			fx_sample = c(fx_sample,x_star)#
-			accepts = accepts + 1#
-		} else{#
-			x = c(x,x_star)#
-		}
-fx_samples
-fx_sample
-x
-#1. Update envelope: piecewise linear envelope in log-scale.#
-		new_envelope = update_envelope(x,h,hp,xlb,xub)#
-		#-----------------------#
-		#2. Calculate areas of piecewise exponential functions based on#
-		#exponentiating each tangent line over its range z_p to z_p+1.#
-		Areas = calculate_exp_areas(new_envelope)#
-		#-----------------------#
-		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
-		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
-		#A_idx = sample(1:length(Areas),size=1,replace=F)#
-		#-----------------------#
-		#4. Sample an x* from the truncated exponential distibution from selected area.#
-		hx = new_envelope$hx[A_idx]#
-		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
-		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
-		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
+###############################
+###   MAIN ARS FUNCTION:   ####
+###############################
 #
-			#Note: we only know how to sample from exponential at zero.  We must do two things:#
-			#1. Check if slope hpx_star is +/-.#
-			#2. Adjust x* realization by shifting it.#
-#
-		if(hpx<0){#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = -(x_star + z2)	#
-		} else{#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = x_star + z2#
-		}#
-#		x_star = rtexp(n=1,m=hpx,t=z2-z1)	#Truncate at z2-z1, since shifted so z1=0.#
-#		x_star = ifelse(hpx<0,	#Test if slope is negative.#
-#			z1 - x_star,	#If slope neg, flip: x* ~ Exp(hpx), then xstar = z1-x*#
-#			x_star + z1)	#If slope not neg, just shift: x* ~ Exp(hpx), then xstar = z1 + x*#
-		#-----------------------#
-		#5. Acceptance test:#
-		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
-		#Set up the proposal function.  This is the exponential function selected#
-		#for sampling, above, for the selected area.#
-		x1 = new_envelope$x[A_idx]	#For calculation of value of tangent line at x_star.#
-			#b =  new_envelope$b[A_idx]	#The slope for the calculation of the tangent line value at x_star.#
-		log_g = hp(x1,a) * x_star + h(x1,a) - hp(x1,a)*x1	#Value of piecewise linear envelope at x_star.#
-		g = exp(log_g)	#Value of piecewise exponential at x_star.#
-		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
-		#	If accept, then add x_star to fx_sample vector.#
-		#	If reject, then add x_star to x vector of points to sample, and start over.#
-		if (u <= f(x_star,a) / g){#
-			fx_sample = c(fx_sample,x_star)#
-			accepts = accepts + 1#
-		} else{#
-			x = c(x,x_star)#
-		}
-fx_samp = adaptive_rej_sampling(f,h,hp,M,n=1000,c(.25,.75),xlb=.001,xub=.999)
-Areas
-sum(Areas)
-adaptive_rej_sampling = function(f,h,hp,M,n=10,x,xlb=0,xub=1){#
+adaptive_rej_sampling = function(f,h,hp,n=10,x,xlb=0,xub=1){#
 	#FUNCTION: Performs adaptive rejection sampling.#
 	##
 	#INPUTS:#
@@ -248,7 +2496,6 @@ adaptive_rej_sampling = function(f,h,hp,M,n=10,x,xlb=0,xub=1){#
 		Areas = calculate_exp_areas(new_envelope)#
 		#-----------------------#
 		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
-		print('Area weights')#
 		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
 		#A_idx = sample(1:length(Areas),size=1,replace=F)#
 		#-----------------------#
@@ -262,26 +2509,126 @@ adaptive_rej_sampling = function(f,h,hp,M,n=10,x,xlb=0,xub=1){#
 			#1. Check if slope hpx_star is +/-.#
 			#2. Adjust x* realization by shifting it.#
 #
+	#	if(hpx<0){#
+	#		x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+	#		x_star = z2 - x_star#
+	#	} else{#
+	#		x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+	#		x_star = z1 + x_star#
+	#	}#
+		#Shift and rotate the exponential sample as needed.#
 		if(hpx<0){#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = -(x_star + z2)	#
+			#If slope negative, generate using slope, and shift result.#
+			x_star = rtexp(n=1,m=-hpx,t=z2-z1)#
+			x_star = z1 + x_star#
 		} else{#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = x_star + z2#
+			#If slope positive, generate using -slope, and shift/flip result.#
+			x_star = rtexp(n=1,m=hpx,t=-(z1-z2))	#
+			x_star = z2 - x_star#
 		}#
-#		x_star = rtexp(n=1,m=hpx,t=z2-z1)	#Truncate at z2-z1, since shifted so z1=0.#
-#		x_star = ifelse(hpx<0,	#Test if slope is negative.#
-#			z1 - x_star,	#If slope neg, flip: x* ~ Exp(hpx), then xstar = z1-x*#
-#			x_star + z1)	#If slope not neg, just shift: x* ~ Exp(hpx), then xstar = z1 + x*#
 		#-----------------------#
 		#5. Acceptance test:#
 		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
 		#Set up the proposal function.  This is the exponential function selected#
 		#for sampling, above, for the selected area.#
-		x1 = new_envelope$x[A_idx]	#For calculation of value of tangent line at x_star.#
-			#b =  new_envelope$b[A_idx]	#The slope for the calculation of the tangent line value at x_star.#
-		log_g = hp(x1,a) * x_star + h(x1,a) - hp(x1,a)*x1	#Value of piecewise linear envelope at x_star.#
-		g = exp(log_g)	#Value of piecewise exponential at x_star.#
+		x1 = new_envelope$x[A_idx]		#For calculation of value of tangent line at x_star.#
+		b =  new_envelope$b[A_idx]		#The slope for the calculation of the tangent line value at x_star.#
+		log_g = hp(x1) * x_star + b	#Value of piecewise linear envelope at x_star.#
+		g = exp(log_g)					#Value of piecewise exponential at x_star.#
+		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
+		#	If accept, then add x_star to fx_sample vector.#
+		#	If reject, then add x_star to x vector of points to sample, and start over.#
+		if (u <= f(x_star) / g){#
+			fx_sample = c(fx_sample,x_star)#
+			accepts = accepts + 1#
+		} else{#
+			x = c(x,x_star)#
+		}#
+	} #Start over for another sample until reach n tries.#
+	return(list(fx_sample=fx_sample,p_accept = accepts/n))#
+}
+#Call function.#
+fx_samp = adaptive_rej_sampling(f,h,hp,n=1000,c(.1,7),xlb=-Inf,xub=Inf)#
+#
+#Plot results.#
+pdf(file='/Users/jennstarling/UTAustin/2017S_MCMC/Exercises/Exercise-04/Problem_1_ARS.pdf')#
+fx_samp$p_accept#
+hist(fx_samp$fx_sample,freq=F,main='Adaptive Rejection Sampling',xlab='Samples of f(x)')#
+x=seq(0,10,by=.001)#
+lines(x,3*f(x),col='blue')#
+dev.off()
+rm(list=ls())
+###############################
+###   MAIN ARS FUNCTION:   ####
+###############################
+#
+adaptive_rej_sampling = function(f,h,hp,n=10,x,xlb=0,xub=1){#
+	#FUNCTION: Performs adaptive rejection sampling.#
+	##
+	#INPUTS:#
+	#	f = target function f(x).  Must be log-concave.#
+	#	h = log of target function, logf(x).#
+	#	hp = first derivative of log of target function, d/dx log(f(x))#
+	#	M = max of f(x).  (Must be a bounded function.)#
+	#	n = sample size.  (Returned sample will be lower size, bc some rejections.)#
+	#	x = vector of starting points.  Must be length 2 or longer.#
+	#	xlb = lower bound of domain for f(x).  Can be -Inf.#
+	#	xub = upper bound of domain for f(x).  Can be Inf.#
+	##
+	#OUTPUTS:#
+	#	fx_sample = vector of realizations sampled from f(x).#
+	#	p_accept = prob(acceptance); accepts/n.#
+	fx_sample = numeric() 	#Empty vector to store sampled values from fx.#
+	accepts = 0		#For tracking P(Acceptance).#
+#
+	for(ns in 1:n){#
+		#1. Update envelope: piecewise linear envelope in log-scale.#
+		new_envelope = update_envelope(x,h,hp,xlb,xub)#
+		#-----------------------#
+		#2. Calculate areas of piecewise exponential functions based on#
+		#exponentiating each tangent line over its range z_p to z_p+1.#
+		Areas = calculate_exp_areas(new_envelope)#
+		#-----------------------#
+		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
+		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
+		#A_idx = sample(1:length(Areas),size=1,replace=F)#
+		#-----------------------#
+		#4. Sample an x* from the truncated exponential distibution from selected area.#
+		hx = new_envelope$hx[A_idx]#
+		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
+		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
+		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
+#
+			#Note: we only know how to sample from exponential at zero.  We must do two things:#
+			#1. Check if slope hpx_star is +/-.#
+			#2. Adjust x* realization by shifting it.#
+#
+	#	if(hpx<0){#
+	#		x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+	#		x_star = z2 - x_star#
+	#	} else{#
+	#		x_star = rtexp(n=1,m=hpx,t=z2-z1)#
+	#		x_star = z1 + x_star#
+	#	}#
+		#Shift and rotate the exponential sample as needed.#
+		if(hpx<0){#
+			#If slope negative, generate using neg slope, and shift result.#
+			x_star = rtexp(n=1,m=-hpx,t=z2-z1)#
+			x_star = z1 + x_star#
+		} else{#
+			#If slope positive, generate using slope, and shift/flip result.#
+			x_star = rtexp(n=1,m=hpx,t=-(z1-z2))	#
+			x_star = z2 - x_star#
+		}#
+		#-----------------------#
+		#5. Acceptance test:#
+		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
+		#Set up the proposal function.  This is the exponential function selected#
+		#for sampling, above, for the selected area.#
+		x1 = new_envelope$x[A_idx]		#For calculation of value of tangent line at x_star.#
+		b =  new_envelope$b[A_idx]		#The slope for the calculation of the tangent line value at x_star.#
+		log_g = hp(x1,a) * x_star + b	#Value of piecewise linear envelope at x_star.#
+		g = exp(log_g)					#Value of piecewise exponential at x_star.#
 		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
 		#	If accept, then add x_star to fx_sample vector.#
 		#	If reject, then add x_star to x vector of points to sample, and start over.#
@@ -293,113 +2640,12 @@ adaptive_rej_sampling = function(f,h,hp,M,n=10,x,xlb=0,xub=1){#
 		}#
 	} #Start over for another sample until reach n tries.#
 	return(list(fx_sample=fx_sample,p_accept = accepts/n))#
-}
-fx_samp = adaptive_rej_sampling(f,h,hp,M,n=1000,c(.25,.75),xlb=.001,xub=.999)
-fx_sample = numeric() 	#Empty vector to store sampled values from fx.#
-	accepts = 0		#For tracking P(Acceptance).
-#1. Update envelope: piecewise linear envelope in log-scale.#
-		new_envelope = update_envelope(x,h,hp,xlb,xub)#
-		#-----------------------#
-		#2. Calculate areas of piecewise exponential functions based on#
-		#exponentiating each tangent line over its range z_p to z_p+1.#
-		Areas = calculate_exp_areas(new_envelope)#
-		#-----------------------#
-		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
-		print('Area weights')#
-		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
-		#A_idx = sample(1:length(Areas),size=1,replace=F)#
-		#-----------------------#
-		#4. Sample an x* from the truncated exponential distibution from selected area.#
-		hx = new_envelope$hx[A_idx]#
-		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
-		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
-		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
+}#
 #
-			#Note: we only know how to sample from exponential at zero.  We must do two things:#
-			#1. Check if slope hpx_star is +/-.#
-			#2. Adjust x* realization by shifting it.#
+##############################
+###   HELPER FUNCTIONS:   ####
+##############################
 #
-		if(hpx<0){#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = -(x_star + z2)	#
-		} else{#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = x_star + z2#
-		}#
-#		x_star = rtexp(n=1,m=hpx,t=z2-z1)	#Truncate at z2-z1, since shifted so z1=0.#
-#		x_star = ifelse(hpx<0,	#Test if slope is negative.#
-#			z1 - x_star,	#If slope neg, flip: x* ~ Exp(hpx), then xstar = z1-x*#
-#			x_star + z1)	#If slope not neg, just shift: x* ~ Exp(hpx), then xstar = z1 + x*#
-		#-----------------------#
-		#5. Acceptance test:#
-		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
-		#Set up the proposal function.  This is the exponential function selected#
-		#for sampling, above, for the selected area.#
-		x1 = new_envelope$x[A_idx]	#For calculation of value of tangent line at x_star.#
-			#b =  new_envelope$b[A_idx]	#The slope for the calculation of the tangent line value at x_star.#
-		log_g = hp(x1,a) * x_star + h(x1,a) - hp(x1,a)*x1	#Value of piecewise linear envelope at x_star.#
-		g = exp(log_g)	#Value of piecewise exponential at x_star.#
-		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
-		#	If accept, then add x_star to fx_sample vector.#
-		#	If reject, then add x_star to x vector of points to sample, and start over.#
-		if (u <= f(x_star,a) / g){#
-			fx_sample = c(fx_sample,x_star)#
-			accepts = accepts + 1#
-		} else{#
-			x = c(x,x_star)#
-		}
-#1. Update envelope: piecewise linear envelope in log-scale.#
-		new_envelope = update_envelope(x,h,hp,xlb,xub)#
-		#-----------------------#
-		#2. Calculate areas of piecewise exponential functions based on#
-		#exponentiating each tangent line over its range z_p to z_p+1.#
-		Areas = calculate_exp_areas(new_envelope)#
-		#-----------------------#
-		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
-		print('Area weights')#
-		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
-		#A_idx = sample(1:length(Areas),size=1,replace=F)#
-		#-----------------------#
-		#4. Sample an x* from the truncated exponential distibution from selected area.#
-		hx = new_envelope$hx[A_idx]#
-		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
-		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
-		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
-#
-			#Note: we only know how to sample from exponential at zero.  We must do two things:#
-			#1. Check if slope hpx_star is +/-.#
-			#2. Adjust x* realization by shifting it.#
-#
-		if(hpx<0){#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = -(x_star + z2)	#
-		} else{#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = x_star + z2#
-		}#
-#		x_star = rtexp(n=1,m=hpx,t=z2-z1)	#Truncate at z2-z1, since shifted so z1=0.#
-#		x_star = ifelse(hpx<0,	#Test if slope is negative.#
-#			z1 - x_star,	#If slope neg, flip: x* ~ Exp(hpx), then xstar = z1-x*#
-#			x_star + z1)	#If slope not neg, just shift: x* ~ Exp(hpx), then xstar = z1 + x*#
-		#-----------------------#
-		#5. Acceptance test:#
-		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
-		#Set up the proposal function.  This is the exponential function selected#
-		#for sampling, above, for the selected area.#
-		x1 = new_envelope$x[A_idx]	#For calculation of value of tangent line at x_star.#
-			#b =  new_envelope$b[A_idx]	#The slope for the calculation of the tangent line value at x_star.#
-		log_g = hp(x1,a) * x_star + h(x1,a) - hp(x1,a)*x1	#Value of piecewise linear envelope at x_star.#
-		g = exp(log_g)	#Value of piecewise exponential at x_star.#
-		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
-		#	If accept, then add x_star to fx_sample vector.#
-		#	If reject, then add x_star to x vector of points to sample, and start over.#
-		if (u <= f(x_star,a) / g){#
-			fx_sample = c(fx_sample,x_star)#
-			accepts = accepts + 1#
-		} else{#
-			x = c(x,x_star)#
-		}
-rm(list=ls())
 update_envelope = function(x,h,hp,xlb,xub){#
 	#FUNCTION: Update piece-wise linear envelope of logf(x).#
 	##
@@ -485,983 +2731,96 @@ h = function(x,a) a*log(x) + a*log(1-x)#
 hp = function(x,a) a/x - a/(1-x)#
 #
 a = 2	#Set any arguments for f/h/hp outside the function.#
-x = c(.2,.4,.6) #Set initial vector of starting points.#
 #
-x=c(.25,.75)
-#Call function:#
-fx_samp = adaptive_rej_sampling(f,h,hp,M,n=1000,c(.25,.75),xlb=.001,xub=.999)
-adaptive_rej_sampling = function(f,h,hp,M,n=10,x,xlb=0,xub=1){#
-	#FUNCTION: Performs adaptive rejection sampling.#
-	##
-	#INPUTS:#
-	#	f = target function f(x).  Must be log-concave.#
-	#	h = log of target function, logf(x).#
-	#	hp = first derivative of log of target function, d/dx log(f(x))#
-	#	M = max of f(x).  (Must be a bounded function.)#
-	#	n = sample size.  (Returned sample will be lower size, bc some rejections.)#
-	#	x = vector of starting points.  Must be length 2 or longer.#
-	#	xlb = lower bound of domain for f(x).  Can be -Inf.#
-	#	xub = upper bound of domain for f(x).  Can be Inf.#
-	##
-	#OUTPUTS:#
-	#	fx_sample = vector of realizations sampled from f(x).#
-	#	p_accept = prob(acceptance); accepts/n.#
-	fx_sample = numeric() 	#Empty vector to store sampled values from fx.#
-	accepts = 0		#For tracking P(Acceptance).#
+#Call function.#
+fx_samp = adaptive_rej_sampling(f,h,hp,n=1000,c(.25,.75),xlb=0,xub=1)#
 #
-	for(ns in 1:n){#
-		#1. Update envelope: piecewise linear envelope in log-scale.#
-		new_envelope = update_envelope(x,h,hp,xlb,xub)#
-		#-----------------------#
-		#2. Calculate areas of piecewise exponential functions based on#
-		#exponentiating each tangent line over its range z_p to z_p+1.#
-		Areas = calculate_exp_areas(new_envelope)#
-		#-----------------------#
-		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
-		print('Area weights')#
-		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
-		#A_idx = sample(1:length(Areas),size=1,replace=F)#
-		#-----------------------#
-		#4. Sample an x* from the truncated exponential distibution from selected area.#
-		hx = new_envelope$hx[A_idx]#
-		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
-		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
-		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
+#fx_samp = adaptive_rej_sampling(f,h,hp,M,n=1000,c(.25,.75),xlb=-Inf,xub=Inf)#
 #
-			#Note: we only know how to sample from exponential at zero.  We must do two things:#
-			#1. Check if slope hpx_star is +/-.#
-			#2. Adjust x* realization by shifting it.#
-#
-		if(hpx<0){#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = -(x_star + z2)	#
-		} else{#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = x_star + z2#
-		}#
-#		x_star = rtexp(n=1,m=hpx,t=z2-z1)	#Truncate at z2-z1, since shifted so z1=0.#
-#		x_star = ifelse(hpx<0,	#Test if slope is negative.#
-#			z1 - x_star,	#If slope neg, flip: x* ~ Exp(hpx), then xstar = z1-x*#
-#			x_star + z1)	#If slope not neg, just shift: x* ~ Exp(hpx), then xstar = z1 + x*#
-		#-----------------------#
-		#5. Acceptance test:#
-		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
-		#Set up the proposal function.  This is the exponential function selected#
-		#for sampling, above, for the selected area.#
-		x1 = new_envelope$x[A_idx]	#For calculation of value of tangent line at x_star.#
-			#b =  new_envelope$b[A_idx]	#The slope for the calculation of the tangent line value at x_star.#
-		log_g = hp(x1,a) * x_star + h(x1,a) - hp(x1,a)*x1	#Value of piecewise linear envelope at x_star.#
-		g = exp(log_g)	#Value of piecewise exponential at x_star.#
-		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
-		#	If accept, then add x_star to fx_sample vector.#
-		#	If reject, then add x_star to x vector of points to sample, and start over.#
-		if (u <= f(x_star,a) / g){#
-			fx_sample = c(fx_sample,x_star)#
-			accepts = accepts + 1#
-		} else{#
-			x = c(x,x_star)#
-		}#
-	} #Start over for another sample until reach n tries.#
-	return(list(fx_sample=fx_sample,p_accept = accepts/n))#
-}
-fx_samp = adaptive_rej_sampling(f,h,hp,M,n=1000,c(.25,.75),xlb=.001,xub=.999)
-fx_sample = numeric() 	#Empty vector to store sampled values from fx.#
-	accepts = 0		#For tracking P(Acceptance).
-#1. Update envelope: piecewise linear envelope in log-scale.#
-		new_envelope = update_envelope(x,h,hp,xlb,xub)#
-		#-----------------------#
-		#2. Calculate areas of piecewise exponential functions based on#
-		#exponentiating each tangent line over its range z_p to z_p+1.#
-		Areas = calculate_exp_areas(new_envelope)#
-		#-----------------------#
-		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
-		print('Area weights')#
-		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
-		#A_idx = sample(1:length(Areas),size=1,replace=F)#
-		#-----------------------#
-		#4. Sample an x* from the truncated exponential distibution from selected area.#
-		hx = new_envelope$hx[A_idx]#
-		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
-		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
-		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
-#
-			#Note: we only know how to sample from exponential at zero.  We must do two things:#
-			#1. Check if slope hpx_star is +/-.#
-			#2. Adjust x* realization by shifting it.#
-#
-		if(hpx<0){#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = -(x_star + z2)	#
-		} else{#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = x_star + z2#
-		}#
-#		x_star = rtexp(n=1,m=hpx,t=z2-z1)	#Truncate at z2-z1, since shifted so z1=0.#
-#		x_star = ifelse(hpx<0,	#Test if slope is negative.#
-#			z1 - x_star,	#If slope neg, flip: x* ~ Exp(hpx), then xstar = z1-x*#
-#			x_star + z1)	#If slope not neg, just shift: x* ~ Exp(hpx), then xstar = z1 + x*#
-		#-----------------------#
-		#5. Acceptance test:#
-		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
-		#Set up the proposal function.  This is the exponential function selected#
-		#for sampling, above, for the selected area.#
-		x1 = new_envelope$x[A_idx]	#For calculation of value of tangent line at x_star.#
-			#b =  new_envelope$b[A_idx]	#The slope for the calculation of the tangent line value at x_star.#
-		log_g = hp(x1,a) * x_star + h(x1,a) - hp(x1,a)*x1	#Value of piecewise linear envelope at x_star.#
-		g = exp(log_g)	#Value of piecewise exponential at x_star.#
-		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
-		#	If accept, then add x_star to fx_sample vector.#
-		#	If reject, then add x_star to x vector of points to sample, and start over.#
-		if (u <= f(x_star,a) / g){#
-			fx_sample = c(fx_sample,x_star)#
-			accepts = accepts + 1#
-		} else{#
-			x = c(x,x_star)#
-		}
-xlb=.001
-xub=.999
-#1. Update envelope: piecewise linear envelope in log-scale.#
-		new_envelope = update_envelope(x,h,hp,xlb,xub)#
-		#-----------------------#
-		#2. Calculate areas of piecewise exponential functions based on#
-		#exponentiating each tangent line over its range z_p to z_p+1.#
-		Areas = calculate_exp_areas(new_envelope)#
-		#-----------------------#
-		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
-		print('Area weights')#
-		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
-		#A_idx = sample(1:length(Areas),size=1,replace=F)#
-		#-----------------------#
-		#4. Sample an x* from the truncated exponential distibution from selected area.#
-		hx = new_envelope$hx[A_idx]#
-		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
-		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
-		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
-#
-			#Note: we only know how to sample from exponential at zero.  We must do two things:#
-			#1. Check if slope hpx_star is +/-.#
-			#2. Adjust x* realization by shifting it.#
-#
-		if(hpx<0){#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = -(x_star + z2)	#
-		} else{#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = x_star + z2#
-		}#
-#		x_star = rtexp(n=1,m=hpx,t=z2-z1)	#Truncate at z2-z1, since shifted so z1=0.#
-#		x_star = ifelse(hpx<0,	#Test if slope is negative.#
-#			z1 - x_star,	#If slope neg, flip: x* ~ Exp(hpx), then xstar = z1-x*#
-#			x_star + z1)	#If slope not neg, just shift: x* ~ Exp(hpx), then xstar = z1 + x*#
-		#-----------------------#
-		#5. Acceptance test:#
-		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
-		#Set up the proposal function.  This is the exponential function selected#
-		#for sampling, above, for the selected area.#
-		x1 = new_envelope$x[A_idx]	#For calculation of value of tangent line at x_star.#
-			#b =  new_envelope$b[A_idx]	#The slope for the calculation of the tangent line value at x_star.#
-		log_g = hp(x1,a) * x_star + h(x1,a) - hp(x1,a)*x1	#Value of piecewise linear envelope at x_star.#
-		g = exp(log_g)	#Value of piecewise exponential at x_star.#
-		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
-		#	If accept, then add x_star to fx_sample vector.#
-		#	If reject, then add x_star to x vector of points to sample, and start over.#
-		if (u <= f(x_star,a) / g){#
-			fx_sample = c(fx_sample,x_star)#
-			accepts = accepts + 1#
-		} else{#
-			x = c(x,x_star)#
-		}
-x_star
-adaptive_rej_sampling = function(f,h,hp,M,n=10,x,xlb=0,xub=1){#
-	#FUNCTION: Performs adaptive rejection sampling.#
-	##
-	#INPUTS:#
-	#	f = target function f(x).  Must be log-concave.#
-	#	h = log of target function, logf(x).#
-	#	hp = first derivative of log of target function, d/dx log(f(x))#
-	#	M = max of f(x).  (Must be a bounded function.)#
-	#	n = sample size.  (Returned sample will be lower size, bc some rejections.)#
-	#	x = vector of starting points.  Must be length 2 or longer.#
-	#	xlb = lower bound of domain for f(x).  Can be -Inf.#
-	#	xub = upper bound of domain for f(x).  Can be Inf.#
-	##
-	#OUTPUTS:#
-	#	fx_sample = vector of realizations sampled from f(x).#
-	#	p_accept = prob(acceptance); accepts/n.#
-	fx_sample = numeric() 	#Empty vector to store sampled values from fx.#
-	accepts = 0		#For tracking P(Acceptance).#
-#
-	for(ns in 1:n){#
-		#1. Update envelope: piecewise linear envelope in log-scale.#
-		new_envelope = update_envelope(x,h,hp,xlb,xub)#
-		#-----------------------#
-		#2. Calculate areas of piecewise exponential functions based on#
-		#exponentiating each tangent line over its range z_p to z_p+1.#
-		Areas = calculate_exp_areas(new_envelope)#
-		#-----------------------#
-		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
-		print('Area weights')#
-		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
-		#A_idx = sample(1:length(Areas),size=1,replace=F)#
-		#-----------------------#
-		#4. Sample an x* from the truncated exponential distibution from selected area.#
-		hx = new_envelope$hx[A_idx]#
-		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
-		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
-		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
-#
-			#Note: we only know how to sample from exponential at zero.  We must do two things:#
-			#1. Check if slope hpx_star is +/-.#
-			#2. Adjust x* realization by shifting it.#
-#
-		if(hpx<0){#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = z2 - x_star#
-		} else{#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = x_star + z2#
-		}#
-#		x_star = rtexp(n=1,m=hpx,t=z2-z1)	#Truncate at z2-z1, since shifted so z1=0.#
-#		x_star = ifelse(hpx<0,	#Test if slope is negative.#
-#			z1 - x_star,	#If slope neg, flip: x* ~ Exp(hpx), then xstar = z1-x*#
-#			x_star + z1)	#If slope not neg, just shift: x* ~ Exp(hpx), then xstar = z1 + x*#
-		#-----------------------#
-		#5. Acceptance test:#
-		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
-		#Set up the proposal function.  This is the exponential function selected#
-		#for sampling, above, for the selected area.#
-		x1 = new_envelope$x[A_idx]	#For calculation of value of tangent line at x_star.#
-			#b =  new_envelope$b[A_idx]	#The slope for the calculation of the tangent line value at x_star.#
-		log_g = hp(x1,a) * x_star + h(x1,a) - hp(x1,a)*x1	#Value of piecewise linear envelope at x_star.#
-		g = exp(log_g)	#Value of piecewise exponential at x_star.#
-		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
-		#	If accept, then add x_star to fx_sample vector.#
-		#	If reject, then add x_star to x vector of points to sample, and start over.#
-		if (u <= f(x_star,a) / g){#
-			fx_sample = c(fx_sample,x_star)#
-			accepts = accepts + 1#
-		} else{#
-			x = c(x,x_star)#
-		}#
-	} #Start over for another sample until reach n tries.#
-	return(list(fx_sample=fx_sample,p_accept = accepts/n))#
-}
-fx_samp = adaptive_rej_sampling(f,h,hp,M,n=1000,c(.25,.75),xlb=.001,xub=.999)
-adaptive_rej_sampling = function(f,h,hp,M,n=10,x,xlb=0,xub=1){#
-	#FUNCTION: Performs adaptive rejection sampling.#
-	##
-	#INPUTS:#
-	#	f = target function f(x).  Must be log-concave.#
-	#	h = log of target function, logf(x).#
-	#	hp = first derivative of log of target function, d/dx log(f(x))#
-	#	M = max of f(x).  (Must be a bounded function.)#
-	#	n = sample size.  (Returned sample will be lower size, bc some rejections.)#
-	#	x = vector of starting points.  Must be length 2 or longer.#
-	#	xlb = lower bound of domain for f(x).  Can be -Inf.#
-	#	xub = upper bound of domain for f(x).  Can be Inf.#
-	##
-	#OUTPUTS:#
-	#	fx_sample = vector of realizations sampled from f(x).#
-	#	p_accept = prob(acceptance); accepts/n.#
-	fx_sample = numeric() 	#Empty vector to store sampled values from fx.#
-	accepts = 0		#For tracking P(Acceptance).#
-#
-	for(ns in 1:n){#
-		#1. Update envelope: piecewise linear envelope in log-scale.#
-		new_envelope = update_envelope(x,h,hp,xlb,xub)#
-		#-----------------------#
-		#2. Calculate areas of piecewise exponential functions based on#
-		#exponentiating each tangent line over its range z_p to z_p+1.#
-		Areas = calculate_exp_areas(new_envelope)#
-		#-----------------------#
-		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
-		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
-		#A_idx = sample(1:length(Areas),size=1,replace=F)#
-		#-----------------------#
-		#4. Sample an x* from the truncated exponential distibution from selected area.#
-		hx = new_envelope$hx[A_idx]#
-		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
-		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
-		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
-#
-			#Note: we only know how to sample from exponential at zero.  We must do two things:#
-			#1. Check if slope hpx_star is +/-.#
-			#2. Adjust x* realization by shifting it.#
-#
-		if(hpx<0){#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = z2 - x_star#
-		} else{#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = x_star + z2#
-		}#
-#		x_star = rtexp(n=1,m=hpx,t=z2-z1)	#Truncate at z2-z1, since shifted so z1=0.#
-#		x_star = ifelse(hpx<0,	#Test if slope is negative.#
-#			z1 - x_star,	#If slope neg, flip: x* ~ Exp(hpx), then xstar = z1-x*#
-#			x_star + z1)	#If slope not neg, just shift: x* ~ Exp(hpx), then xstar = z1 + x*#
-		#-----------------------#
-		#5. Acceptance test:#
-		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
-		#Set up the proposal function.  This is the exponential function selected#
-		#for sampling, above, for the selected area.#
-		x1 = new_envelope$x[A_idx]	#For calculation of value of tangent line at x_star.#
-			#b =  new_envelope$b[A_idx]	#The slope for the calculation of the tangent line value at x_star.#
-		log_g = hp(x1,a) * x_star + h(x1,a) - hp(x1,a)*x1	#Value of piecewise linear envelope at x_star.#
-		g = exp(log_g)	#Value of piecewise exponential at x_star.#
-		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
-		#	If accept, then add x_star to fx_sample vector.#
-		#	If reject, then add x_star to x vector of points to sample, and start over.#
-		if (u <= f(x_star,a) / g){#
-			fx_sample = c(fx_sample,x_star)#
-			accepts = accepts + 1#
-		} else{#
-			x = c(x,x_star)#
-		}#
-	} #Start over for another sample until reach n tries.#
-	return(list(fx_sample=fx_sample,p_accept = accepts/n))#
-}
+#Plot results.#
 fx_samp$p_accept#
 hist(fx_samp$fx_sample,freq=F)#
 x=seq(0,1,by=.001)#
 lines(x,(1/beta(a+1,a+1))*f(x,a),col='blue')
-adaptive_rej_sampling = function(f,h,hp,M,n=10,x,xlb=0,xub=1){#
-	#FUNCTION: Performs adaptive rejection sampling.#
-	##
-	#INPUTS:#
-	#	f = target function f(x).  Must be log-concave.#
-	#	h = log of target function, logf(x).#
-	#	hp = first derivative of log of target function, d/dx log(f(x))#
-	#	M = max of f(x).  (Must be a bounded function.)#
-	#	n = sample size.  (Returned sample will be lower size, bc some rejections.)#
-	#	x = vector of starting points.  Must be length 2 or longer.#
-	#	xlb = lower bound of domain for f(x).  Can be -Inf.#
-	#	xub = upper bound of domain for f(x).  Can be Inf.#
-	##
-	#OUTPUTS:#
-	#	fx_sample = vector of realizations sampled from f(x).#
-	#	p_accept = prob(acceptance); accepts/n.#
-	fx_sample = numeric() 	#Empty vector to store sampled values from fx.#
-	accepts = 0		#For tracking P(Acceptance).#
-#
-	for(ns in 1:n){#
-		#1. Update envelope: piecewise linear envelope in log-scale.#
-		new_envelope = update_envelope(x,h,hp,xlb,xub)#
-		#-----------------------#
-		#2. Calculate areas of piecewise exponential functions based on#
-		#exponentiating each tangent line over its range z_p to z_p+1.#
-		Areas = calculate_exp_areas(new_envelope)#
-		#-----------------------#
-		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
-		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
-		#A_idx = sample(1:length(Areas),size=1,replace=F)#
-		#-----------------------#
-		#4. Sample an x* from the truncated exponential distibution from selected area.#
-		hx = new_envelope$hx[A_idx]#
-		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
-		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
-		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
-#
-			#Note: we only know how to sample from exponential at zero.  We must do two things:#
-			#1. Check if slope hpx_star is +/-.#
-			#2. Adjust x* realization by shifting it.#
-#
-		if(hpx<0){#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = z2 - x_star#
-		} else{#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = x_star + z2#
-		}#
-#		x_star = rtexp(n=1,m=hpx,t=z2-z1)	#Truncate at z2-z1, since shifted so z1=0.#
-#		x_star = ifelse(hpx<0,	#Test if slope is negative.#
-#			z1 - x_star,	#If slope neg, flip: x* ~ Exp(hpx), then xstar = z1-x*#
-#			x_star + z1)	#If slope not neg, just shift: x* ~ Exp(hpx), then xstar = z1 + x*#
-		#-----------------------#
-		#5. Acceptance test:#
-		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
-		#Set up the proposal function.  This is the exponential function selected#
-		#for sampling, above, for the selected area.#
-		x1 = new_envelope$x[A_idx]	#For calculation of value of tangent line at x_star.#
-			#b =  new_envelope$b[A_idx]	#The slope for the calculation of the tangent line value at x_star.#
-		log_g = hp(x1,a) * x_star + h(x1,a) - hp(x1,a)*x1	#Value of piecewise linear envelope at x_star.#
-		g = exp(log_g)	#Value of piecewise exponential at x_star.#
-		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
-		#	If accept, then add x_star to fx_sample vector.#
-		#	If reject, then add x_star to x vector of points to sample, and start over.#
-		if (u > f(x_star,a) / g){#
-			fx_sample = c(fx_sample,x_star)#
-			accepts = accepts + 1#
-		} else{#
-			x = c(x,x_star)#
-		}#
-	} #Start over for another sample until reach n tries.#
-	return(list(fx_sample=fx_sample,p_accept = accepts/n))#
-}
-fx_samp = adaptive_rej_sampling(f,h,hp,M,n=1000,c(.25,.75),xlb=.001,xub=.999)#
-#
-fx_samp$p_accept#
-hist(fx_samp$fx_sample,freq=F)
-adaptive_rej_sampling = function(f,h,hp,M,n=10,x,xlb=0,xub=1){#
-	#FUNCTION: Performs adaptive rejection sampling.#
-	##
-	#INPUTS:#
-	#	f = target function f(x).  Must be log-concave.#
-	#	h = log of target function, logf(x).#
-	#	hp = first derivative of log of target function, d/dx log(f(x))#
-	#	M = max of f(x).  (Must be a bounded function.)#
-	#	n = sample size.  (Returned sample will be lower size, bc some rejections.)#
-	#	x = vector of starting points.  Must be length 2 or longer.#
-	#	xlb = lower bound of domain for f(x).  Can be -Inf.#
-	#	xub = upper bound of domain for f(x).  Can be Inf.#
-	##
-	#OUTPUTS:#
-	#	fx_sample = vector of realizations sampled from f(x).#
-	#	p_accept = prob(acceptance); accepts/n.#
-	fx_sample = numeric() 	#Empty vector to store sampled values from fx.#
-	accepts = 0		#For tracking P(Acceptance).#
-#
-	for(ns in 1:n){#
-		#1. Update envelope: piecewise linear envelope in log-scale.#
-		new_envelope = update_envelope(x,h,hp,xlb,xub)#
-		#-----------------------#
-		#2. Calculate areas of piecewise exponential functions based on#
-		#exponentiating each tangent line over its range z_p to z_p+1.#
-		Areas = calculate_exp_areas(new_envelope)#
-		#-----------------------#
-		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
-		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
-		#A_idx = sample(1:length(Areas),size=1,replace=F)#
-		#-----------------------#
-		#4. Sample an x* from the truncated exponential distibution from selected area.#
-		hx = new_envelope$hx[A_idx]#
-		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
-		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
-		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
-#
-			#Note: we only know how to sample from exponential at zero.  We must do two things:#
-			#1. Check if slope hpx_star is +/-.#
-			#2. Adjust x* realization by shifting it.#
-#
-		if(hpx<0){#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = z2 - x_star#
-		} else{#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = z1 + x_star#
-		}#
-		#-----------------------#
-		#5. Acceptance test:#
-		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
-		#Set up the proposal function.  This is the exponential function selected#
-		#for sampling, above, for the selected area.#
-		x1 = new_envelope$x[A_idx]	#For calculation of value of tangent line at x_star.#
-			#b =  new_envelope$b[A_idx]	#The slope for the calculation of the tangent line value at x_star.#
-		log_g = hp(x1,a) * x_star + h(x1,a) - hp(x1,a)*x1	#Value of piecewise linear envelope at x_star.#
-		g = exp(log_g)	#Value of piecewise exponential at x_star.#
-		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
-		#	If accept, then add x_star to fx_sample vector.#
-		#	If reject, then add x_star to x vector of points to sample, and start over.#
-		if (u <= f(x_star,a) / g){#
-			fx_sample = c(fx_sample,x_star)#
-			accepts = accepts + 1#
-		} else{#
-			x = c(x,x_star)#
-		}#
-	} #Start over for another sample until reach n tries.#
-	return(list(fx_sample=fx_sample,p_accept = accepts/n))#
-}
-#Call function:#
-fx_samp = adaptive_rej_sampling(f,h,hp,M,n=1000,c(.25,.75),xlb=.001,xub=.999)#
-#
-fx_samp$p_accept#
-hist(fx_samp$fx_sample,freq=F)
-#Call function:#
-fx_samp = adaptive_rej_sampling(f,h,hp,M,n=1000,c(.25,.75),xlb=.001,xub=.999)#
-#
-fx_samp$p_accept#
+dev.off()
 hist(fx_samp$fx_sample,freq=F)#
 x=seq(0,1,by=.001)#
 lines(x,(1/beta(a+1,a+1))*f(x,a),col='blue')
-adaptive_rej_sampling = function(f,h,hp,M,n=10,x,xlb=0,xub=1){#
-	#FUNCTION: Performs adaptive rejection sampling.#
-	##
-	#INPUTS:#
-	#	f = target function f(x).  Must be log-concave.#
-	#	h = log of target function, logf(x).#
-	#	hp = first derivative of log of target function, d/dx log(f(x))#
-	#	M = max of f(x).  (Must be a bounded function.)#
-	#	n = sample size.  (Returned sample will be lower size, bc some rejections.)#
-	#	x = vector of starting points.  Must be length 2 or longer.#
-	#	xlb = lower bound of domain for f(x).  Can be -Inf.#
-	#	xub = upper bound of domain for f(x).  Can be Inf.#
-	##
-	#OUTPUTS:#
-	#	fx_sample = vector of realizations sampled from f(x).#
-	#	p_accept = prob(acceptance); accepts/n.#
-	fx_sample = numeric() 	#Empty vector to store sampled values from fx.#
-	accepts = 0		#For tracking P(Acceptance).#
+library(ars)#
+#Choose k starting points.#
+#	If domain unbounded on left, choose x1 so h'(x1) > 0.#
+#	If domain unbounded on right, choose xk so h'(xk) < 0.#
 #
-	for(ns in 1:n){#
-		#1. Update envelope: piecewise linear envelope in log-scale.#
-		new_envelope = update_envelope(x,h,hp,xlb,xub)#
-		#-----------------------#
-		#2. Calculate areas of piecewise exponential functions based on#
-		#exponentiating each tangent line over its range z_p to z_p+1.#
-		Areas = calculate_exp_areas(new_envelope)#
-		#-----------------------#
-		#3. Randomly select an area, based on uniform sampling, weighted by areas.#
-		A_idx = sample(1:length(Areas),size=1,replace=F,prob=Areas/sum(Areas))#
-		#A_idx = sample(1:length(Areas),size=1,replace=F)#
-		#-----------------------#
-		#4. Sample an x* from the truncated exponential distibution from selected area.#
-		hx = new_envelope$hx[A_idx]#
-		hpx = new_envelope$hpx[A_idx]		#lambda (rate) for the selected exponential.#
-		z1 = new_envelope$z[A_idx]			#Lower bound for truncated exponential.  Shifts to zero for sampling.#
-		z2 = new_envelope$z[A_idx+1]		#Upper bound for truncated exponential.#
+#f = function that computes log(f(u)) where f(u) is proportional to density we want to sample from#
+f = f#
 #
-			#Note: we only know how to sample from exponential at zero.  We must do two things:#
-			#1. Check if slope hpx_star is +/-.#
-			#2. Adjust x* realization by shifting it.#
+#fprima = d/du log(f(u))#
+fprima = h#
 #
-		if(hpx<0){#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = z2 - x_star#
-		} else{#
-			x_star = rtexp(n=1,m=hpx,t=z2-z1)#
-			x_star = z1 + x_star#
-		}#
-		#-----------------------#
-		#5. Acceptance test:#
-		u = runif(1,0,1)	#Generate one unif(0,1) realization.#
-		#Set up the proposal function.  This is the exponential function selected#
-		#for sampling, above, for the selected area.#
-		x1 = new_envelope$x[A_idx]	#For calculation of value of tangent line at x_star.#
-		b =  new_envelope$b[A_idx]	#The slope for the calculation of the tangent line value at x_star.#
-		log_g = hp(x1,a) * x_star + b	#Value of piecewise linear envelope at x_star.#
-		g = exp(log_g)	#Value of piecewise exponential at x_star.#
-		#Accept x_star as from f(x) if fx/gx <= a uniform draw.#
-		#	If accept, then add x_star to fx_sample vector.#
-		#	If reject, then add x_star to x vector of points to sample, and start over.#
-		if (u <= f(x_star,a) / g){#
-			fx_sample = c(fx_sample,x_star)#
-			accepts = accepts + 1#
-		} else{#
-			x = c(x,x_star)#
-		}#
-	} #Start over for another sample until reach n tries.#
-	return(list(fx_sample=fx_sample,p_accept = accepts/n))#
-}
-fx_samp = adaptive_rej_sampling(f,h,hp,M,n=1000,c(.25,.75),xlb=0,xub=1)
+#xlb and xub = lower bound and upper bound of x values#
+xlb = -Inf#
+xub = Inf#
+#
+fx = ars(n=1000,f,fprima,x=c(.1,7),m=3,lb=F,ub=F) #x = starting points where log(f(u)) defined.#
+#
+#Plot results:#
+hist(fx,freq=F)#
+#
+fx_fun = function(x) x^a * (1-x)^a#
+x = seq(-10,10,by=.001)#
+lines(x,(1/beta(a+1,a+1))*fx_fun(x),type='l',col='blue')
+f
+#Set up original function fx, hx=logfx, and hpx=d/dx (hx).#
+f  = function(x) x^3 * exp(-2*x) * (1-exp(-2*x))^3#
+h  = function(x) 3*log(x) - 2*x + 3*log(1-exp(-2*x))#
+hp = function(x) 3/x - 2 + 6/(exp(2*x)-1)#
+#
+#Inspect log-concave h for good starting points.#
+x = seq(0,10,by=.01)#
+hx = h(x)#
+plot(x,hx,type='l',col='blue')#
+#
+#Call function.#
+fx_samp = adaptive_rej_sampling(f,h,hp,n=1000,c(.1,7),xlb=-Inf,xub=Inf)#
+#
+#Plot results.#
+pdf(file='/Users/jennstarling/UTAustin/2017S_MCMC/Exercises/Exercise-04/Problem_1_ARS.pdf')#
 fx_samp$p_accept#
-hist(fx_samp$fx_sample,freq=F)#
-x=seq(0,1,by=.001)#
-lines(x,(1/beta(a+1,a+1))*f(x,a),col='blue')
-fx_samp = adaptive_rej_sampling(f,h,hp,M,n=1000,c(.25,.75),xlb=0,xub=1)
-fx_samp = adaptive_rej_sampling(f,h,hp,M,n=1000,c(.25,.75),xlb=-Inf,xub=Inf)
-head(temp_scrub)
-library(lubridate)#
-library(reshape2)#
-library(readr)#
-library(imputeTS)#
-library(foreach)#
+hist(fx_samp$fx_sample,freq=F,main='Adaptive Rejection Sampling',xlab='Samples of f(x)')#
+x=seq(0,10,by=.001)#
+lines(x,3*f(x),col='blue')#
+dev.off()
+#Set up original function fx, hx=logfx, and hpx=d/dx (hx).#
+f  = function(x) x^3 * exp(-2*x) * (1-exp(-2*x))^3#
+h  = function(x) 3*log(x) - 2*x + 3*log(1-exp(-2*x))#
+hp = function(x) 3/x - 2 + 6/(exp(2*x)-1)#
 #
-#####
-# Read in data#
-#####
-#
-station_list = dir('data/weather_stations/')#
-#
-weather_data = foreach(i = seq_along(station_list), .combine='rbind') %do% {#
-	cat("Reading", station_list[i], "\n")#
-	path_name = paste0('data/weather_stations/', station_list[i])#
-	this_year = read_csv(path_name, col_types = cols(#
-  		Time = col_datetime(),#
-  		dewpoint = col_double(),#
-  		stationName = col_character(),#
-  		temperature = col_double(),#
-  		windSpeed = col_double()#
-	))#
-	this_year#
-}#
-#####
-# Melt and re-cast to get three data frames of temp, dewpoint, and windSpeed#
-#####
-#
-all_stations_melt = melt(weather_data, id = c("Time", "stationName"),#
-	measure = c("temperature", "dewpoint", "windSpeed"))#
-#
-# Cast as array: (days) x (Stations) x (3 variables).#
-# The aggregation function just takes the first observation for a#
-# given time/station combo, thus implicitly de-duplicating the data.#
-out = acast(all_stations_melt, Time ~ stationName ~ variable, fun = function(x) {x[1]})#
-#
-# Split the array out as three data frames#
-temperature = as.data.frame(out[,,1])#
-dewpoint = as.data.frame(out[,,2])#
-windSpeed = as.data.frame(out[,,3])#
-time_stamp = ymd_hms(rownames(temperature))
-head(temperature)
-head(temperature[,1])
-dim(temperature)
-rownames(temperature)
-temperature[,1]
-# Write out files#
-write.csv(temperature, file="data/weather_processed/temperature.csv")#
-write.csv(dewpoint, file="data/weather_processed/dewpoint.csv")#
-write.csv(windSpeed, file="data/weather_processed/windSpeed.csv")#
-#
-# Remove those stations without at least 90% of the temp observations present#
-na_frac = apply(temperature, 2, function(x) sum(is.na(x)/length(x)))#
-scrub_stations = which(na_frac > 0.1)#
-#
-# temperatures for the retained stations#
-temp_scrub = temperature[,-scrub_stations]#
-dewpoint_scrub = dewpoint[,-scrub_stations]#
-windSpeed_scrub = windSpeed[,-scrub_stations]#
-#
-# Write out scrubbed files#
-write.csv(temperature, file="data/weather_processed/temperature_scrubbed.csv")#
-write.csv(dewpoint, file="data/weather_processed/dewpoint_scrubbed.csv")#
-write.csv(windSpeed, file="data/weather_processed/windSpeed_scrubbed.csv")
-head(temp_scrub)
-rownames(temp_scrub)
-my_weather_smoother = function(y) {#
-	yrange = range(y, na.rm=TRUE)#
-	yhat = na.interpolation(y, option='linear')#
-	yhat = pmin(yrange[2], pmax(yrange[1], yhat))#
-}#
-#
-temperature_impute = apply(temp_scrub, 2, my_weather_smoother)#
-dewpoint_impute = apply(dewpoint_scrub, 2, my_weather_smoother)#
-windSpeed_impute = apply(windSpeed_scrub, 2, my_weather_smoother)#
-#
-rownames(temperature_impute) = time_stamp#
-rownames(dewpoint_impute) = time_stamp#
-rownames(windSpeed_impute) = time_stamp#
-#
-write.csv(temperature_impute, file="data/weather_processed/temperature_impute.csv")#
-write.csv(dewpoint_impute, file="data/weather_processed/dewpoint_impute.csv")#
-write.csv(windSpeed_impute, file="data/weather_processed/windSpeed_impute.csv")
-head(temperature_impute)
-time_stamp = ymd_hms(rownames(temperature))
-head(time_stamp)
-rownames(temperature_impute) = time_stamp#
-rownames(dewpoint_impute) = time_stamp#
-rownames(windSpeed_impute) = time_stamp
-rownames(temperature_impute)
-rownames(temperature_impute) = rownames(temperature)#
-rownames(dewpoint_impute) = rownames(dewpoint)#
-rownames(windSpeed_impute) = rownames(windSpeed)
-head(temperature_impute)
-dim(temperature)
-dim(temperature_impute)
-dim(temperature_scrub)
-dim(temperature_scrubbed)
-dim(temp_scrub)
-write.csv(temperature_impute, file="data/weather_processed/temperature_impute.csv")#
-write.csv(dewpoint_impute, file="data/weather_processed/dewpoint_impute.csv")#
-write.csv(windSpeed_impute, file="data/weather_processed/windSpeed_impute.csv")
-head(temperature_impute)
-library(matrixStats)	#For weighted row means for temp, dewpoint, windspeed.#
-#
-#Set working directory.#
-setwd('/Users/jennstarling/UTAustin/Research/ercot')#
-#
-#Read in load data.#
-load = read.table('data/load_data.gz',row.names=NULL,sep=',',header=T)#
-#
-#Read in temp, dewpoint and windspeed data.#
-temp = read.csv('data/weather_processed/temperature_impute.csv',header=T)#
-dewpt = read.csv('data/weather_processed/dewpoint_impute.csv',header=T)#
-windspeed = read.csv('data/weather_processed/windSpeed_impute.csv',header=T)#
-#
-#Read stations and counties data.#
-stations = read.table('data/station_data.gz',row.names=NULL,sep=',',header=T)#
-stations_key = read.csv('data/station_key_usaf_jan2017.csv',header=T)#
-#
-#-------------------------------------------------------#
-#Construct zone temp/dewpt/windspeed data, based on weighted zone data.#
-#
-#Zone weighting based on current ercot methodology.#
-zone_weights = data.frame(#
-	zone = c('NORTH','NORTH','NORTH_C','NORTH_C','NORTH_C','EAST','EAST',#
-	'FAR_WEST','FAR_WEST','WEST','WEST','WEST','SOUTH_C','SOUTH_C','COAST','COAST',#
-	'COAST','SOUTHERN','SOUTHERN','SOUTHERN'),#
-	station_id = c('KSPS','KPRX','KDFW','KACT','KMWL','KTYR',#
-	'KLFK','KINK','KMAF','KABI','KSJT','KJCT','KAUS','KSAT',#
-	'KLVJ','KGLS','KVCT','KCRP','KBRO','KLRD'),#
-	weight = c(.5,.5,.5,.25,.25,.5,.5,.5,.5,.4,.4,.2,.5,.5,.5,.3,.2,.4,.4,.2)#
-)#
-#
-zone_weights$station_name = stations_key$STATION[match(zone_weights$station_id,stations_key$ICAO)]#
-#
-#-------------------------------------------------------#
-#PROCESS TEMPERATURES, DEWPOINTS, & WINDSPEED BY ZONE:#
-#Temp is provided for each station.  Calculate wavg temp for each zone#
-#based on weighting in zone_weights table..#
-#
-#Calculate & save avg temp for each zone at each time point.#
-zone_names = unique(zone_weights$zone)
-#Calculate & save avg temp for each zone at each time point.#
-zone_names = unique(zone_weights$zone)#
-#
-#Begin with empty columns, and rownames as times.#
-zone_temp = zone_dewpt = zone_windspd = #
-	data.frame('NORTH'=NA,'NORTH_C'=NA,'EAST'=NA,#
-	'FAR_WEST'=NA,'WEST'=NA,'SOUTH_C'=NA,'COAST'=NA,'SOUTHERN'=NA)#
-rownames(zone_temp) = rownames(zone_dewpt) = rownames(zone_windspd) = rownames(temp)
-head(zone_temp)
-#Loop through each zone.#
-for (name in zone_names){#
-	#Vector of stations and respective weights in each zone.#
-	stns_in_zone = as.character(zone_weights$station_id[zone_weights$zone==name])#
-	weights = zone_weights$weight[zone_weights$zone==name]#
-	#Temps, dewpoints and windspeeds for stations at each time.#
-	temps = temp[,stns_in_zone]#
-	dewpts = dewpt[,stns_in_zone]#
-	winds = windspeed[,stns_in_zone]#
-	#WAVG zone temp, dewpoint and windspeed for stations in zone.#
-	zone_temp[,name] = rowWeightedMeans(as.matrix(temps),w=weights,na.rm=T)#
-	zone_dewpt[,name] = rowWeightedMeans(as.matrix(dewpts),w=weights,na.rm=T)#
-	zone_windspd[,name] = rowWeightedMeans(as.matrix(winds),w=weights,na.rm=T)#
-}#
-#
-#Set rownames equal to times.#
-rownames(zone_temp) = rownames(zone_dewpt) = rownames(zone_windspd) = rownames(temp)
-dim(temp)
-dim(temp_zones)
-dim(zones_temp)
-dim(zone_temp)
-library(matrixStats)	#For weighted row means for temp, dewpoint, windspeed.#
-#
-#Set working directory.#
-setwd('/Users/jennstarling/UTAustin/Research/ercot')#
-#
-#Read in load data.#
-load = read.table('data/load_data.gz',row.names=NULL,sep=',',header=T)#
-#
-#Read in temp, dewpoint and windspeed data.#
-temp = read.csv('data/weather_processed/temperature_impute.csv',header=T)#
-dewpt = read.csv('data/weather_processed/dewpoint_impute.csv',header=T)#
-windspeed = read.csv('data/weather_processed/windSpeed_impute.csv',header=T)#
-#
-#Read stations and counties data.#
-stations = read.table('data/station_data.gz',row.names=NULL,sep=',',header=T)#
-stations_key = read.csv('data/station_key_usaf_jan2017.csv',header=T)#
-#
-#-------------------------------------------------------#
-#Construct zone temp/dewpt/windspeed data, based on weighted zone data.#
-#
-#Zone weighting based on current ercot methodology.#
-zone_weights = data.frame(#
-	zone = c('NORTH','NORTH','NORTH_C','NORTH_C','NORTH_C','EAST','EAST',#
-	'FAR_WEST','FAR_WEST','WEST','WEST','WEST','SOUTH_C','SOUTH_C','COAST','COAST',#
-	'COAST','SOUTHERN','SOUTHERN','SOUTHERN'),#
-	station_id = c('KSPS','KPRX','KDFW','KACT','KMWL','KTYR',#
-	'KLFK','KINK','KMAF','KABI','KSJT','KJCT','KAUS','KSAT',#
-	'KLVJ','KGLS','KVCT','KCRP','KBRO','KLRD'),#
-	weight = c(.5,.5,.5,.25,.25,.5,.5,.5,.5,.4,.4,.2,.5,.5,.5,.3,.2,.4,.4,.2)#
-)#
-#
-zone_weights$station_name = stations_key$STATION[match(zone_weights$station_id,stations_key$ICAO)]
-zone_weights
-#Calculate & save avg temp for each zone at each time point.#
-zone_names = unique(zone_weights$zone)#
-#
-#Begin with empty columns.#
-zone_temp = zone_dewpt = zone_windspd = #
-	data.frame('NORTH'=NA,'NORTH_C'=NA,'EAST'=NA,#
-	'FAR_WEST'=NA,'WEST'=NA,'SOUTH_C'=NA,'COAST'=NA,'SOUTHERN'=NA)
-zone_temp
-for (name in zone_names){#
-	#Vector of stations and respective weights in each zone.#
-	stns_in_zone = as.character(zone_weights$station_id[zone_weights$zone==name])#
-	weights = zone_weights$weight[zone_weights$zone==name]#
-	#Temps, dewpoints and windspeeds for stations at each time.#
-	temps = temp[,stns_in_zone]#
-	dewpts = dewpt[,stns_in_zone]#
-	winds = windspeed[,stns_in_zone]#
-	#WAVG zone temp, dewpoint and windspeed for stations in zone.#
-	zone_temp[,name] = rowWeightedMeans(as.matrix(temps),w=weights,na.rm=T)#
-	zone_dewpt[,name] = rowWeightedMeans(as.matrix(dewpts),w=weights,na.rm=T)#
-	zone_windspd[,name] = rowWeightedMeans(as.matrix(winds),w=weights,na.rm=T)#
-}
-zone_temp = zone_dewpt = zone_windspd = #
-	data.frame('NORTH'=as.numeric(),'NORTH_C'=as.numeric(),'EAST'=as.numeric(),#
-	'FAR_WEST'=as.numeric(),'WEST'=as.numeric(),'SOUTH_C'=as.numeric(),'COAST'=as.numeric(),'SOUTHERN'=as.numeric())
-zone_temp
-#Loop through each zone.#
-for (name in zone_names){#
-	#Vector of stations and respective weights in each zone.#
-	stns_in_zone = as.character(zone_weights$station_id[zone_weights$zone==name])#
-	weights = zone_weights$weight[zone_weights$zone==name]#
-	#Temps, dewpoints and windspeeds for stations at each time.#
-	temps = temp[,stns_in_zone]#
-	dewpts = dewpt[,stns_in_zone]#
-	winds = windspeed[,stns_in_zone]#
-	#WAVG zone temp, dewpoint and windspeed for stations in zone.#
-	zone_temp[,name] = rowWeightedMeans(as.matrix(temps),w=weights,na.rm=T)#
-	zone_dewpt[,name] = rowWeightedMeans(as.matrix(dewpts),w=weights,na.rm=T)#
-	zone_windspd[,name] = rowWeightedMeans(as.matrix(winds),w=weights,na.rm=T)#
-}
-zone_temp = data.frame(matrix("",ncol=length(zone_names),nrow=nrow(temp)))
-dim(zone_temp)
-head(zone_tmep)
-head(zone_tmep)
-head(zone_temp)
-rownames(zone_temp) = rownames(zone_dewpt) = rownames(zone_windspd) = rownames(temp)
-dim(temp)
-dim(zone_dewpt)
-zone_temp = zone_dewpt = zone_windspd = data.frame(matrix("",ncol=length(zone_names),nrow=nrow(temp)))#
-rownames(zone_temp) = rownames(zone_dewpt) = rownames(zone_windspd) = rownames(temp)
-dim(zone_dewpt)
-zone_temp = zone_dewpt = zone_windspd = data.frame(matrix("",ncol=length(zone_names),nrow=nrow(temp)))#
-rownames(zone_temp) = rownames(zone_dewpt) = rownames(zone_windspd) = rownames(temp)#
-colnames(zone_temp) = colnames(zone_dewpt) = colnames(zone_windspd) = zone_names
-head(zone_temp)
-rownames(temp)
-#Set working directory.#
-setwd('/Users/jennstarling/UTAustin/Research/ercot')#
-#
-#Read in load data.#
-load = read.table('data/load_data.gz',row.names=NULL,sep=',',header=T)#
-#
-#Read in temp, dewpoint and windspeed data.#
-temp = read.csv('data/weather_processed/temperature_impute.csv',header=T)#
-dewpt = read.csv('data/weather_processed/dewpoint_impute.csv',header=T)#
-windspeed = read.csv('data/weather_processed/windSpeed_impute.csv',header=T)
-head(temp)
-vecNorm <- function(x) sqrt(sum(x^2))
-vecNorm(c(2,1,1))
-sqrt(6)
-vecNorm(c(0,5,-5))
-2*sqrt(5)
-sqrt(50)
-5/sqrt(50)
-1/sqrt(2)
-4*16
-+49+9
-58/4
-14.5*2
-vecNorm(c(4,7/2,3/2))
-29/2
-sqrt(29/2)
-A = matrix(c(2,0,4,1,5,7,1,-5,-3),byrow=T,nrow=3)
-A
-det(A)
-O = matrix(c(2/sqrt(6),0,0,1/sqrt(6),1/sqrt(2),0,1/sqrt(6),1/sqrt(2),0),byrow=T,nrow=F)
-O = matrix(c(2/sqrt(6),0,0,1/sqrt(6),1/sqrt(2),0,1/sqrt(6),1/sqrt(2),0),byrow=T,nrow=F)
-O = matrix(c(2/sqrt(6),0,0,1/sqrt(6),1/sqrt(2),0,1/sqrt(6),1/sqrt(2),0),byrow=T,nrow=3)
-O
-O %*% t(O)
-O = matrix(c(2/sqrt(6),0,0,1/sqrt(6),1/sqrt(2),0,1/sqrt(6),-1/sqrt(2),0),byrow=T,nrow=3)
-O
-O %*% t(O)
-1^2+2^2+3^2
-vecNorm
-vecNorm(c(1,2,-3))
-sqrt(14)
-3*-14
-42/14
-3*3^2
-27/9
-O=matrix(c(1/sqrt(14),1/sqrt(3),0,2/sqrt(14),1/sqrt(3),0,-3/sqrt(14),1/sqrt(3),0),nrow=3,byrow=T)
-O
-O %*% t(O)
-gamma(0)
-A = matrix(c(15,374.5,374.5,9482.75),byrow=T,nrow=F)
-A = matrix(c(15,374.5,374.5,9482.75),byrow=T,nrow=3)
-A = matrix(c(15,374.5,374.5,9482.75),byrow=T,nrow=2)
-A
-B = c(6.03,158.25)
-solve(A) %*% B
-round(solve(A) %*% B,2)
-beta_hat = round(solve(A) %*% B,2)
-beta_hat
-xTx = A
-xTx
-xTy = c(6.03,158.25)
-3.03 - 2*t(beta_hat) %*% xTy
-xTy
-3.03 - 2*t(beta_hat) %*% xTy + t(beta_hat) %*% xTx %*% beta_hat
-.1914/13
-a = 3.03
-b = 2 * t(beta_hat) %*% xTy
-a
-b
-c = t(beta_hat) %*% xTx %*% beta_hat
-c
-a - b + c
-.1914/13
-sqrt(.0147)
-A
-.0147 * solve(A)
-cv = .0147 * solve(A)
-cv
-round(cv,2)
-pt(.02/2,13,lower.tail=T)
-pt(.02/2,13,lower.tail=F)
-?pt
-qt(.02,13,lower.tail=T)
-qt(.02/2,13,lower.tail=T)
-.06 + c(-1,1) 2.65*.00011
-.06 + c(-1,1) * 2.65*.00011
-ci1 = .06 + c(-1,1) * 2.65*sqrt(.00011)
-ci1
-ci2 = (.06+1.05) + c(-1,1) * 2.65 * sqrt(.07+.0001 - 2*(-.003))
-ci2
-(-1.05-.05)/.07
-A
-solve(A) %*% xTy
-O
-1/sqrt(14)
-1/sqrt(3)
-2/sqrt(14)
-O %*% t(O)
-17/42
-10/21
-5/42
--2/21
-X = matrix(c(rep(5,1),(5,0),rep(0,5),rep(1,5)),nrow=2,byrow=F)
-X = matrix(c(rep(5,1),rep(5,0),rep(0,5),rep(1,5)),nrow=2,byrow=F)
-X = matrix(c(rep(5,1),rep(5,0),rep(0,5),rep(1,5)),ncol=2,byrow=F)
-X
-x1 = c(rep(1,5),rep(0,5))
-x1
-x2 = c(rep(0,5),rep(1,5))
-x2
-X = cbind(x1,x2)
-X
-solve(t(X) %*% X) %*% t(X)
-M = X %*%solve(t(X) %*% X) %*% t(X)
-M
-solve(t(X) %*% X)
-x = matrix(rep(1,5),nrow=1)
-x
-x = matrix(rep(1,5),nrow=5)
-x
-b_hat = solve(t(x)%*%x)%*% t(x)
-b_hat
-solve(t(x)%*%x)
-xTx
-xTy
-b_hat = solve(xTx) %*% xTy
-b_hat
-round(b_hat,2)
-yTy
-yTy = 3.03
-(1/13) * (yTy - 2*t(b_hat) %*% xTy + t(b_hat) %*% xTx %*% b_hat)
-rss = yTy - 2*t(b_hat) %*% xTy + t(b_hat) %*% xTx %*% b_hat
-rss
-yTy
-b_hat
-b_hat = round(b_hat,2)
-(1/13) * (yTy - 2*t(b_hat) %*% xTy + t(b_hat) %*% xTx %*% b_hat)
-sighat2 = .0147
-xTx
-cv = sighat2 * solve(xTx)
-cv
-round(cv,3)
-sqrt(.07 + .0001 + 2*.003)
-b_hat[2]-b_hat[1]
-qt(1-.05/2,13)
+#Inspect log-concave h for good starting points.#
+pdf(file='/Users/jennstarling/UTAustin/2017S_MCMC/Exercises/Exercise-04/Problem_1_ARS_logfx.pdf')#
+x = seq(0,10,by=.01)#
+hx = h(x)#
+plot(x,hx,type='l',col='blue',main='Plot logfx to eyeball good starting points')#
+dev.off
+f  = function(x) x^3 * exp(-2*x) * (1-exp(-2*x))^3#
+h  = function(x) 3*log(x) - 2*x + 3*log(1-exp(-2*x))#
+hp = function(x) 3/x - 2 + 6/(exp(2*x)-1)
+#Inspect log-concave h for good starting points.#
+pdf(file='/Users/jennstarling/UTAustin/2017S_MCMC/Exercises/Exercise-04/Problem_1_ARS_logfx.pdf')#
+x = seq(0,10,by=.01)#
+hx = h(x)#
+plot(x,hx,type='l',col='blue',title='Plot logfx to eyeball good starting points')#
+dev.off
+x = seq(0,10,by=.01)#
+hx = h(x)#
+plot(x,hx,type='l',col='blue',main='Plot logfx to eyeball good starting points')
+dev.off()
+x = seq(0,10,by=.01)#
+hx = h(x)#
+plot(x,hx,type='l',col='blue',main='Plot logfx to eyeball good starting points')
+#Inspect log-concave h for good starting points.#
+pdf(file='/Users/jennstarling/UTAustin/2017S_MCMC/Exercises/Exercise-04/Problem_1_ARS_logfx.pdf')#
+x = seq(0,10,by=.01)#
+hx = h(x)#
+plot(x,hx,type='l',col='blue',main='Plot logfx to eyeball good starting points')#
+dev.off
+dev.off(1)
