@@ -1,1453 +1,12 @@
-ll
-#Grid mesh of parameters to test.#
-tau2.sq = 1e-6#
-tau1.sq = seq(15,60,by=1)#
-b = seq(40,70,by=1)#
-#
-triplets = expand.grid(b,tau1.sq,tau2.sq)#
-#
-#Empty vector to hold marginal log-likelihoods.#
-ll = rep(0,nrow(triplets))#
-#
-#Iterate through triplets.#
-for (k in 1:length(ll)){#
-	print(length(ll)-k)#
-	triplet = unlist(triplets[k,])#
-	ll[k] = gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=0.01)#
-}#
-#
-#save(ll,file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/RCode/marginalloglik.RData')#
-#
-#Save optimal triplet of parameters.#
-max.idx = which.max(ll)#
-opt.triplet = unlist(triplets[max.idx,])#
-#Contour plot of marginal loglikelihood.#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z)
-#Load data.#
-utilities = read.csv('/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/statsmod/Course-Data/utilities.csv',header=T)#
-#
-#Extract data for model.#
-x = utilities$temp									#average temp.#
-y = utilities$gasbill / utilities$billingdays		#avg daily bill#
-n = length(x)#
-#
-#================================================================#
-# C: Pointwise Posterior Mean & 95% CI for all observed xi ======#
-#================================================================#
-#
-#Set up hyperparameters.#
-b = 10#
-tau1.sq = 5#
-tau2.sq = 1e-6#
-triplet = c(b,tau1.sq,tau2.sq)#
-params=triplet#
-#
-#Run prediction with sigma2=1 to estimate residuals.#
-pred = gp.predict(x,y,x.new=x,mu=rep(0,n),cov.fun=cov.se,params=triplet,sig2=1)#
-sig2 = sum(y-pred$post.mean)^2/(n-1)
-sig2
-#Rerun with estimated sigma2.#
-pred = gp.predict(x,y,x.new=x,mu=rep(0,n),cov.fun=cov.se,params=triplet,sig2=sig2)#
-#
-#Vectors to hold posterior mean, var, and CI bounds.#
-post.mean = pred$post.mean#
-post.se = sqrt(pred$post.var)#
-post.ci.lb = post.mean - 1.96*post.se#
-post.ci.ub = post.mean + 1.96*post.se#
-#
-#Plotting:#
-pdf('/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/Figures/6_C.pdf')#
-x.new=x#
-idx = sort(x.new, index.return = T)$ix#
-plot(x,y,col='darkgrey',xlab='x',ylab='y',main='Utilities Data Posterior Mean and 95% CI')#
-lines(x.new[idx],post.ci.lb[idx],col='red',lty=2)#
-lines(x.new[idx],post.ci.ub[idx],col='red',lty=2)#
-#
-#Shade confidence bands.#
-polygon(c(sort(x.new),rev(sort(x.new))),c(post.ci.ub[idx],rev(post.ci.lb[idx])),col='lightgrey',border=NA)#
-points(x,y)#
-lines(x.new[idx],post.mean[idx],col='blue')#
-#
-dev.off()
-#Set up hyperparameters.#
-b = 40#
-tau1.sq = 20#
-tau2.sq = 1e-6#
-triplet = c(b,tau1.sq,tau2.sq)#
-params=triplet#
-#
-#Run prediction with sigma2=1 to estimate residuals.#
-pred = gp.predict(x,y,x.new=x,mu=rep(0,n),cov.fun=cov.se,params=triplet,sig2=1)#
-sig2 = sum(y-pred$post.mean)^2/(n-1)#
-#
-#Rerun with estimated sigma2.#
-pred = gp.predict(x,y,x.new=x,mu=rep(0,n),cov.fun=cov.se,params=triplet,sig2=sig2)#
-#
-#Vectors to hold posterior mean, var, and CI bounds.#
-post.mean = pred$post.mean#
-post.se = sqrt(pred$post.var)#
-post.ci.lb = post.mean - 1.96*post.se#
-post.ci.ub = post.mean + 1.96*post.se#
-#
-#Plotting:#
-pdf('/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/Figures/6_C.pdf')#
-x.new=x#
-idx = sort(x.new, index.return = T)$ix#
-plot(x,y,col='darkgrey',xlab='x',ylab='y',main='Utilities Data Posterior Mean and 95% CI')#
-lines(x.new[idx],post.ci.lb[idx],col='red',lty=2)#
-lines(x.new[idx],post.ci.ub[idx],col='red',lty=2)#
-#
-#Shade confidence bands.#
-polygon(c(sort(x.new),rev(sort(x.new))),c(post.ci.ub[idx],rev(post.ci.lb[idx])),col='lightgrey',border=NA)#
-points(x,y)#
-lines(x.new[idx],post.mean[idx],col='blue')#
-#
-dev.off()
-sig2
-#Set up hyperparameters.#
-b = 5#
-tau1.sq = 2#
-tau2.sq = 1e-6#
-triplet = c(b,tau1.sq,tau2.sq)#
-params=triplet#
-#
-#Run prediction with sigma2=1 to estimate residuals.#
-pred = gp.predict(x,y,x.new=x,mu=rep(0,n),cov.fun=cov.se,params=triplet,sig2=1)#
-sig2 = sum(y-pred$post.mean)^2/(n-1)#
-#
-#Rerun with estimated sigma2.#
-pred = gp.predict(x,y,x.new=x,mu=rep(0,n),cov.fun=cov.se,params=triplet,sig2=sig2)#
-#
-#Vectors to hold posterior mean, var, and CI bounds.#
-post.mean = pred$post.mean#
-post.se = sqrt(pred$post.var)#
-post.ci.lb = post.mean - 1.96*post.se#
-post.ci.ub = post.mean + 1.96*post.se#
-#
-#Plotting:#
-pdf('/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/Figures/6_C.pdf')#
-x.new=x#
-idx = sort(x.new, index.return = T)$ix#
-plot(x,y,col='darkgrey',xlab='x',ylab='y',main='Utilities Data Posterior Mean and 95% CI')#
-lines(x.new[idx],post.ci.lb[idx],col='red',lty=2)#
-lines(x.new[idx],post.ci.ub[idx],col='red',lty=2)#
-#
-#Shade confidence bands.#
-polygon(c(sort(x.new),rev(sort(x.new))),c(post.ci.ub[idx],rev(post.ci.lb[idx])),col='lightgrey',border=NA)#
-points(x,y)#
-lines(x.new[idx],post.mean[idx],col='blue')#
-#
-dev.off()
-#Set up hyperparameters.#
-b = 5#
-tau1.sq = 5#
-tau2.sq = 1e-6#
-triplet = c(b,tau1.sq,tau2.sq)#
-params=triplet#
-#
-#Run prediction with sigma2=1 to estimate residuals.#
-pred = gp.predict(x,y,x.new=x,mu=rep(0,n),cov.fun=cov.se,params=triplet,sig2=1)#
-sig2 = sum(y-pred$post.mean)^2/(n-1)#
-#
-#Rerun with estimated sigma2.#
-pred = gp.predict(x,y,x.new=x,mu=rep(0,n),cov.fun=cov.se,params=triplet,sig2=sig2)#
-#
-#Vectors to hold posterior mean, var, and CI bounds.#
-post.mean = pred$post.mean#
-post.se = sqrt(pred$post.var)#
-post.ci.lb = post.mean - 1.96*post.se#
-post.ci.ub = post.mean + 1.96*post.se#
-#
-#Plotting:#
-pdf('/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/Figures/6_C.pdf')#
-x.new=x#
-idx = sort(x.new, index.return = T)$ix#
-plot(x,y,col='darkgrey',xlab='x',ylab='y',main='Utilities Data Posterior Mean and 95% CI')#
-lines(x.new[idx],post.ci.lb[idx],col='red',lty=2)#
-lines(x.new[idx],post.ci.ub[idx],col='red',lty=2)#
-#
-#Shade confidence bands.#
-polygon(c(sort(x.new),rev(sort(x.new))),c(post.ci.ub[idx],rev(post.ci.lb[idx])),col='lightgrey',border=NA)#
-points(x,y)#
-lines(x.new[idx],post.mean[idx],col='blue')#
-#
-dev.off()
-#Grid mesh of parameters to test.#
-tau2.sq = 1e-6#
-tau1.sq = seq(1,100,by=1)#
-b = seq(1,100,by=1)#
-#
-triplets = expand.grid(b,tau1.sq,tau2.sq)#
-#
-#Empty vector to hold marginal log-likelihoods.#
-ll = rep(0,nrow(triplets))#
-#
-#Iterate through triplets.#
-for (k in 1:length(ll)){#
-	print(length(ll)-k)#
-	triplet = unlist(triplets[k,])#
-	ll[k] = gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=0.01)#
-}#
-#
-#save(ll,file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/RCode/marginalloglik.RData')#
-#
-#Save optimal triplet of parameters.#
-max.idx = which.max(ll)#
-opt.triplet = unlist(triplets[max.idx,])
-sig2
-#Grid mesh of parameters to test.#
-tau2.sq = 1e-6#
-tau1.sq = seq(1,100,by=1)#
-b = seq(1,100,by=1)#
-#
-triplets = expand.grid(b,tau1.sq,tau2.sq)#
-#
-#Empty vector to hold marginal log-likelihoods.#
-ll = rep(0,nrow(triplets))#
-#
-#Iterate through triplets.#
-for (k in 1:length(ll)){#
-	print(length(ll)-k)#
-	triplet = unlist(triplets[k,])#
-	ll[k] = gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=sig2)#
-}#
-#
-#save(ll,file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/RCode/marginalloglik.RData')#
-#
-#Save optimal triplet of parameters.#
-max.idx = which.max(ll)#
-opt.triplet = unlist(triplets[max.idx,])#
-#Contour plot of marginal loglikelihood.#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z)
-opt.triplet
-round(opt.triplet,2)
-#Contour plot of marginal loglikelihood.#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z)
-#Grid mesh of parameters to test.#
-tau2.sq = 1e-6#
-tau1.sq = seq(1,40,by=.5)#
-b = seq(1,60,by=.5)#
-#
-triplets = expand.grid(b,tau1.sq,tau2.sq)#
-#
-#Empty vector to hold marginal log-likelihoods.#
-ll = rep(0,nrow(triplets))#
-#
-#Iterate through triplets.#
-for (k in 1:length(ll)){#
-	print(length(ll)-k)#
-	triplet = unlist(triplets[k,])#
-	ll[k] = gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=sig2)#
-}#
-#
-#save(ll,file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/RCode/marginalloglik.RData')#
-#
-#Save optimal triplet of parameters.#
-max.idx = which.max(ll)#
-opt.triplet = unlist(triplets[max.idx,])#
-#Contour plot of marginal loglikelihood.#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z)
-#Contour plot of marginal loglikelihood.#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=10)
-#Contour plot of marginal loglikelihood.#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20)
-b=57.18#
-tau1.sq = 23.21#
-triplet=c(b,tau1.sq,tau2.sq)#
-gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=sig2)
-ll[max.idx]
-opt.triplet
-round(opt.triplet,2)
-sig2
-b=13.5#
-tau1.sq=11.5#
-triplet=c(b,tau1.sq,tau2.sq)#
-gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=sig2)#
-#
-#Test Giorgio's optimal#
-b=57.18#
-tau1.sq = 23.21#
-triplet=c(b,tau1.sq,tau2.sq)#
-gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=sig2)
-b=13.5#
-tau1.sq=11.5#
-triplet=c(b,tau1.sq,tau2.sq)#
-sig2=1#
-gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=sig2)#
-#
-#Test Giorgio's optimal#
-b=57.18#
-tau1.sq = 23.21#
-triplet=c(b,tau1.sq,tau2.sq)#
-gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=sig2)
-#Grid mesh of parameters to test.#
-tau2.sq = 1e-6#
-tau1.sq = seq(20,40,by=1)#
-b = seq(40,70,by=1)#
-#
-triplets = expand.grid(b,tau1.sq,tau2.sq)#
-#
-#Empty vector to hold marginal log-likelihoods.#
-ll = rep(0,nrow(triplets))#
-#
-#Iterate through triplets.#
-for (k in 1:length(ll)){#
-	print(length(ll)-k)#
-	triplet = unlist(triplets[k,])#
-	ll[k] = gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=1)#
-}#
-#
-#save(ll,file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/RCode/marginalloglik.RData')#
-#
-#Save optimal triplet of parameters.#
-max.idx = which.max(ll)#
-opt.triplet = unlist(triplets[max.idx,])#
-ll[max.idx]#
-#Contour plot of marginal loglikelihood.#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20)
-#Grid mesh of parameters to test.#
-tau2.sq = 1e-6#
-tau1.sq = seq(20,40,by=1)#
-b = seq(40,70,by=1)#
-#
-triplets = expand.grid(b,tau1.sq,tau2.sq)#
-#
-#Empty vector to hold marginal log-likelihoods.#
-ll = rep(0,nrow(triplets))#
-#
-#Iterate through triplets.#
-for (k in 1:length(ll)){#
-	print(length(ll)-k)#
-	triplet = unlist(triplets[k,])#
-	ll[k] = gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=2)#
-}#
-#
-#save(ll,file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/RCode/marginalloglik.RData')#
-#
-#Save optimal triplet of parameters.#
-max.idx = which.max(ll)#
-opt.triplet = unlist(triplets[max.idx,])#
-ll[max.idx]#
-#Contour plot of marginal loglikelihood.#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20)
-opt.triplet
-round(opt.triplet,2)
-#Grid mesh of parameters to test.#
-tau2.sq = 1e-6#
-tau1.sq = seq(20,40,by=1)#
-b = seq(40,70,by=1)#
-#
-triplets = expand.grid(b,tau1.sq,tau2.sq)#
-#
-#Empty vector to hold marginal log-likelihoods.#
-ll = rep(0,nrow(triplets))#
-#
-#Iterate through triplets.#
-for (k in 1:length(ll)){#
-	print(length(ll)-k)#
-	triplet = unlist(triplets[k,])#
-	ll[k] = gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=1.5)#
-}#
-#
-#save(ll,file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/RCode/marginalloglik.RData')#
-#
-#Save optimal triplet of parameters.#
-max.idx = which.max(ll)#
-opt.triplet = unlist(triplets[max.idx,])#
-ll[max.idx]#
-#Contour plot of marginal loglikelihood.#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20)
-round(opt.triplet,2)
-#Grid mesh of parameters to test.#
-tau2.sq = 1e-6#
-tau1.sq = seq(20,40,by=1)#
-b = seq(40,70,by=1)#
-#
-triplets = expand.grid(b,tau1.sq,tau2.sq)#
-#
-#Empty vector to hold marginal log-likelihoods.#
-ll = rep(0,nrow(triplets))#
-#
-#Iterate through triplets.#
-for (k in 1:length(ll)){#
-	print(length(ll)-k)#
-	triplet = unlist(triplets[k,])#
-	ll[k] = gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=1)#
-}#
-#
-#save(ll,file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/RCode/marginalloglik.RData')#
-#
-#Save optimal triplet of parameters.#
-max.idx = which.max(ll)#
-opt.triplet = unlist(triplets[max.idx,])#
-ll[max.idx]#
-#Contour plot of marginal loglikelihood.#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20)
-#Grid mesh of parameters to test.#
-tau2.sq = 0#
-tau1.sq = seq(20,40,by=1)#
-b = seq(40,70,by=1)#
-#
-triplets = expand.grid(b,tau1.sq,tau2.sq)#
-#
-#Empty vector to hold marginal log-likelihoods.#
-ll = rep(0,nrow(triplets))#
-#
-#Iterate through triplets.#
-for (k in 1:length(ll)){#
-	print(length(ll)-k)#
-	triplet = unlist(triplets[k,])#
-	ll[k] = gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=.0001)#
-}#
-#
-#save(ll,file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/RCode/marginalloglik.RData')#
-#
-#Save optimal triplet of parameters.#
-max.idx = which.max(ll)#
-opt.triplet = unlist(triplets[max.idx,])#
-ll[max.idx]#
-#Contour plot of marginal loglikelihood.#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20)
-#Grid mesh of parameters to test.#
-tau2.sq = 0#
-tau1.sq = seq(20,40,by=1)#
-b = seq(40,70,by=1)#
-#
-triplets = expand.grid(b,tau1.sq,tau2.sq)#
-#
-#Empty vector to hold marginal log-likelihoods.#
-ll = rep(0,nrow(triplets))#
-#
-#Iterate through triplets.#
-for (k in 1:length(ll)){#
-	print(length(ll)-k)#
-	triplet = unlist(triplets[k,])#
-	ll[k] = gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=1)#
-}#
-#
-#save(ll,file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/RCode/marginalloglik.RData')#
-#
-#Save optimal triplet of parameters.#
-max.idx = which.max(ll)#
-opt.triplet = unlist(triplets[max.idx,])#
-ll[max.idx]#
-#Contour plot of marginal loglikelihood.#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20)
-round(opt.triplet,2)
-b=13.5#
-tau1.sq=11.5#
-triplet=c(b,tau1.sq,tau2.sq)#
-sig2=1#
-gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=sig2)#
-#
-#Test Giorgio's optimal#
-b=57.18#
-tau1.sq = 23.21#
-triplet=c(b,tau1.sq,tau2.sq)#
-gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=sig2)
-round(opt.triplet,2)
-b=61#
-tau1.sq=39#
-triplet=c(b,tau1.sq,tau2.sq)#
-sig2=1#
-gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=sig2)#
-#
-#Test Giorgio's optimal#
-b=57.18#
-tau1.sq = 23.21#
-triplet=c(b,tau1.sq,tau2.sq)#
-gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=sig2)
-b=61#
-tau1.sq=39#
-triplet=c(b,tau1.sq,tau2.sq)#
-sig2=.12#
-gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=sig2)#
-#
-#Test Giorgio's optimal#
-b=57.18#
-tau1.sq = 23.21#
-triplet=c(b,tau1.sq,tau2.sq)#
-gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=sig2)
-b=61#
-tau1.sq=39#
-triplet=c(b,tau1.sq,tau2.sq)#
-sig2=2#
-gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=sig2)#
-#
-#Test Giorgio's optimal#
-b=57.18#
-tau1.sq = 23.21#
-triplet=c(b,tau1.sq,tau2.sq)#
-gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=sig2)
-sig2 = sum(y-pred$post.mean)^2/(n-1)
-sig2
-b=61#
-tau1.sq=39#
-triplet=c(b,tau1.sq,tau2.sq)#
-#sig2=2#
-gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=sig2)#
-#
-#Test Giorgio's optimal#
-b=57.18#
-tau1.sq = 23.21#
-triplet=c(b,tau1.sq,tau2.sq)#
-gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=sig2)
-#Grid mesh of parameters to test.#
-tau2.sq = 0#
-tau1.sq = seq(.1,100,by=.1)#
-b = seq(.1,100,by=.1)#
-#
-triplets = expand.grid(b,tau1.sq,tau2.sq)#
-#
-#Empty vector to hold marginal log-likelihoods.#
-ll = rep(0,nrow(triplets))#
-#
-#Iterate through triplets.#
-for (k in 1:length(ll)){#
-	print(length(ll)-k)#
-	triplet = unlist(triplets[k,])#
-	ll[k] = gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=1)#
-}#
-#
-save(ll,file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/RCode/marginalloglik.RData')
-triplets = expand.grid(b,tau1.sq,tau2.sq)
-dim(triplets)
-tau2.sq = 0#
-tau1.sq = seq(.1,100,by=10)#
-b = seq(.1,100,by=10)#
-#
-triplets = expand.grid(b,tau1.sq,tau2.sq)
-ll = apply(triplets,2,gp.logl.y,x=x,y=y,mu=rep(0,length(x)),cov.fun=cov.se,sig2=1)
-triplets
-as.list(triplets)
-triplets = expand.grid(b,tau1.sq,tau2.sq)#
-as.list(t(triplets))
-t(triplets)
-as.list(t(triplets))
-triplets = expand.grid(b,tau1.sq,tau2.sq)
-triplets
-#Grid mesh of parameters to test.#
-tau2.sq = 0#
-tau1.sq = seq(1,100,by=1)#
-b = seq(1,100,by=1)#
-#
-triplets = expand.grid(b,tau1.sq,tau2.sq)
-dim(triplets)
-#Grid mesh of parameters to test.#
-tau2.sq = 0#
-tau1.sq = seq(1,100,by=.5)#
-b = seq(1,100,by=.5)#
-#
-triplets = expand.grid(b,tau1.sq,tau2.sq)#
-#
-#Empty vector to hold marginal log-likelihoods.#
-ll = rep(0,nrow(triplets))#
-#
-ll = apply(triplets,2,gp.logl.y,x=x,y=y,mu=rep(0,length(x)),cov.fun=cov.se,sig2=1)#
-#
-#Iterate through triplets.#
-for (k in 1:length(ll)){#
-	print(length(ll)-k)#
-	triplet = unlist(triplets[k,])#
-	ll[k] = gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=1)#
-}#
-#
-save(ll,file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/RCode/marginalloglik.RData')
-max.idx = which.max(ll)#
-opt.triplet = unlist(triplets[max.idx,])#
-ll[max.idx]#
-#
-round(opt.triplet,2)#
-#
-#Contour plot of marginal loglikelihood.#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20)
-gp.logl.y = function(x,y,mu,cov.fun,params,sig2=0){#
-	#-------------------------------------------------------------#
-	#FUNCTION: 	Generates values of the marginal log-likelihood p(y) #
-	#			from the noisy Gaussian Process #
-	#			with specified mean and covariance matrix.#
-	#			Model: y = f(x) + e, with e ~ N(0,sig2*I)#
-	#			Marginal of y: multivariate N(0,sig2I + C)#
-	#			Logl of Marginal of y: #
-	#-------------------------------------------------------------#
-	#INPUTS: 	x = vector (x1,...,xn) #
-	#			y = observed GP values at each x.  Can be noisy, or not.#
-	#			params = vector(b,tau1.sq,tau2.sq) of 3 hyperparameters,#
-	#				where:#
-	#				b = #
-	#				tau1.sq = #
-	#				tau2.sq = #
-	#			mu = vector of means, length n.#
-	#			cov.fun = covariance matrix function.#
-	#			sig2 = variance for noise. 0 predicts for a non-noisy GP.#
-	#-------------------------------------------------------------#
-	#OUTPUTS:	marg.logl = marginal loglikelihood of y (given x, params)#
-	#-------------------------------------------------------------#
-	require(mvtnorm)#
-	n = length(x)#
-	#Build covariance matrix.#
-	C	= make.covmatrix(x,x,cov.fun,params)#
-	sig2I = sig2 * diag(n)#
-	#Calculate and return marginal log-likelihood for y.#
-	marg.logl = dmvnorm(y,rep(0,length(x)),sig2I + C,log=T,method='chol')#
-	return(marg.logl)#
-}
-#Test Giorgio's optimal#
-b=57.18#
-tau1.sq = 23.21#
-triplet=c(b,tau1.sq,tau2.sq)#
-gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=sig2)
-gp.logl.y = function(x,y,mu,cov.fun,params,sig2=0){#
-	#-------------------------------------------------------------#
-	#FUNCTION: 	Generates values of the marginal log-likelihood p(y) #
-	#			from the noisy Gaussian Process #
-	#			with specified mean and covariance matrix.#
-	#			Model: y = f(x) + e, with e ~ N(0,sig2*I)#
-	#			Marginal of y: multivariate N(0,sig2I + C)#
-	#			Logl of Marginal of y: #
-	#-------------------------------------------------------------#
-	#INPUTS: 	x = vector (x1,...,xn) #
-	#			y = observed GP values at each x.  Can be noisy, or not.#
-	#			params = vector(b,tau1.sq,tau2.sq) of 3 hyperparameters,#
-	#				where:#
-	#				b = #
-	#				tau1.sq = #
-	#				tau2.sq = #
-	#			mu = vector of means, length n.#
-	#			cov.fun = covariance matrix function.#
-	#			sig2 = variance for noise. 0 predicts for a non-noisy GP.#
-	#-------------------------------------------------------------#
-	#OUTPUTS:	marg.logl = marginal loglikelihood of y (given x, params)#
-	#-------------------------------------------------------------#
-	require(mvtnorm)#
-	n = length(x)#
-	#Build covariance matrix.#
-	C	= make.covmatrix(x,x,cov.fun,params)#
-	sig2I = sig2 * diag(n)#
-	#Calculate and return marginal log-likelihood for y.#
-	marg.logl = dmvnorm(y,rep(0,length(x)),sig2I + C,log=T)#
-	return(marg.logl)#
-}
-#Test Giorgio's optimal#
-b=57.18#
-tau1.sq = 23.21#
-triplet=c(b,tau1.sq,tau2.sq)#
-gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=sig2)
-sog2
-sig2
-sig2=1
-#Test Giorgio's optimal#
-b=57.18#
-tau1.sq = 23.21#
-triplet=c(b,tau1.sq,tau2.sq)#
-gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=sig2)
-sig2=1.2
-#Test Giorgio's optimal#
-b=57.18#
-tau1.sq = 23.21#
-triplet=c(b,tau1.sq,tau2.sq)#
-gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=sig2)
-sig2=.5
-#Test Giorgio's optimal#
-b=57.18#
-tau1.sq = 23.21#
-triplet=c(b,tau1.sq,tau2.sq)#
-gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=sig2)
-sig2=.2
-#Test Giorgio's optimal#
-b=57.18#
-tau1.sq = 23.21#
-triplet=c(b,tau1.sq,tau2.sq)#
-gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=sig2)
-sig2=.5
-#Test Giorgio's optimal#
-b=57.18#
-tau1.sq = 23.21#
-triplet=c(b,tau1.sq,tau2.sq)#
-gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=sig2)
-sig2=.4
-#Test Giorgio's optimal#
-b=57.18#
-tau1.sq = 23.21#
-triplet=c(b,tau1.sq,tau2.sq)#
-gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=sig2)
-sig2=.6
-#Test Giorgio's optimal#
-b=57.18#
-tau1.sq = 23.21#
-triplet=c(b,tau1.sq,tau2.sq)#
-gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=sig2)
-#Set up hyperparameters.#
-b = 40#
-tau1.sq = 20#
-tau2.sq = 1e-6#
-triplet = c(b,tau1.sq,tau2.sq)#
-params=triplet#
-#
-#Run prediction with sigma2=1 to estimate residuals.#
-pred = gp.predict(x,y,x.new=x,mu=rep(0,n),cov.fun=cov.se,params=triplet,sig2=1)#
-sig2 = sum(y-pred$post.mean)^2/(n-1)
-sig2
-#Set up hyperparameters.#
-b = 10#
-tau1.sq = 10#
-tau2.sq = 1e-6#
-triplet = c(b,tau1.sq,tau2.sq)#
-params=triplet#
-#
-#Run prediction with sigma2=1 to estimate residuals.#
-pred = gp.predict(x,y,x.new=x,mu=rep(0,n),cov.fun=cov.se,params=triplet,sig2=1)#
-sig2 = sum(y-pred$post.mean)^2/(n-1)
-sig2
-#Set up hyperparameters.#
-b = 10#
-tau1.sq = 5#
-tau2.sq = 1e-6#
-triplet = c(b,tau1.sq,tau2.sq)#
-params=triplet#
-#
-#Run prediction with sigma2=1 to estimate residuals.#
-pred = gp.predict(x,y,x.new=x,mu=rep(0,n),cov.fun=cov.se,params=triplet,sig2=1)#
-sig2 = sum(y-pred$post.mean)^2/(n-1)
-sig2
-#Set up hyperparameters.#
-b = 10#
-tau1.sq = 5#
-tau2.sq = 1#
-triplet = c(b,tau1.sq,tau2.sq)#
-params=triplet#
-#
-#Run prediction with sigma2=1 to estimate residuals.#
-pred = gp.predict(x,y,x.new=x,mu=rep(0,n),cov.fun=cov.se,params=triplet,sig2=1)#
-sig2 = sum(y-pred$post.mean)^2/(n-1)
-sig2
-#Set up hyperparameters.#
-b = 10#
-tau1.sq = 5#
-tau2.sq = 0#
-triplet = c(b,tau1.sq,tau2.sq)#
-params=triplet#
-#
-#Run prediction with sigma2=1 to estimate residuals.#
-pred = gp.predict(x,y,x.new=x,mu=rep(0,n),cov.fun=cov.se,params=triplet,sig2=1)#
-sig2 = sum(y-pred$post.mean)^2/(n-1)
-sig2
-#Set up hyperparameters.#
-b = 10#
-tau1.sq = 5#
-tau2.sq = 0#
-triplet = c(b,tau1.sq,tau2.sq)#
-params=triplet#
-#
-#Run prediction with sigma2=1 to estimate residuals.#
-pred = gp.predict(x,y,x.new=x,mu=rep(0,n),cov.fun=cov.se,params=triplet,sig2=0)#
-sig2 = sum(y-pred$post.mean)^2/(n-1)
-#Set up hyperparameters.#
-b = 10#
-tau1.sq = 5#
-tau2.sq = 0#
-triplet = c(b,tau1.sq,tau2.sq)#
-params=triplet#
-#
-#Run prediction with sigma2=1 to estimate residuals.#
-pred = gp.predict(x,y,x.new=x,mu=rep(0,n),cov.fun=cov.se,params=triplet,sig2=0.01)#
-sig2 = sum(y-pred$post.mean)^2/(n-1)
-sig2
-#Set up hyperparameters.#
-b = 10#
-tau1.sq = 5#
-tau2.sq = 0#
-triplet = c(b,tau1.sq,tau2.sq)#
-params=triplet#
-#
-#Run prediction with sigma2=1 to estimate residuals.#
-pred = gp.predict(x,y,x.new=x,mu=rep(0,n),cov.fun=cov.se,params=triplet,sig2=5)#
-sig2 = sum(y-pred$post.mean)^2/(n-1)
-sig2
-#Set up hyperparameters.#
-b = 10#
-tau1.sq = 5#
-tau2.sq = 0#
-triplet = c(b,tau1.sq,tau2.sq)#
-params=triplet#
-#
-#Run prediction with sigma2=1 to estimate residuals.#
-pred = gp.predict(x,y,x.new=x,mu=rep(0,n),cov.fun=cov.se,params=triplet,sig2=1)#
-sig2 = sum(y-pred$post.mean)^2/(n-1)#
-#
-#Rerun with estimated sigma2.#
-pred = gp.predict(x,y,x.new=x,mu=rep(0,n),cov.fun=cov.se,params=triplet,sig2=sig2)
-#Vectors to hold posterior mean, var, and CI bounds.#
-post.mean = pred$post.mean#
-post.se = sqrt(pred$post.var)#
-post.ci.lb = post.mean - 1.96*post.se#
-post.ci.ub = post.mean + 1.96*post.se
-x.new=x#
-idx = sort(x.new, index.return = T)$ix#
-plot(x,y,col='darkgrey',xlab='x',ylab='y',main='Utilities Data Posterior Mean and 95% CI')#
-lines(x.new[idx],post.ci.lb[idx],col='red',lty=2)#
-lines(x.new[idx],post.ci.ub[idx],col='red',lty=2)#
-#
-#Shade confidence bands.#
-polygon(c(sort(x.new),rev(sort(x.new))),c(post.ci.ub[idx],rev(post.ci.lb[idx])),col='lightgrey',border=NA)#
-points(x,y)#
-lines(x.new[idx],post.mean[idx],col='blue')
-#Grid mesh of parameters to test.#
-tau2.sq = 0#
-tau1.sq = seq(1,100,by=10)#
-b = seq(1,100,by=10)#
-#
-triplets = expand.grid(b,tau1.sq,tau2.sq)#
-#
-#Empty vector to hold marginal log-likelihoods.#
-ll = rep(0,nrow(triplets))#
-#
-ll = apply(triplets,2,gp.logl.y,x=x,y=y,mu=rep(0,length(x)),cov.fun=cov.se,sig2=1)#
-#
-#Iterate through triplets.#
-for (k in 1:length(ll)){#
-	print(length(ll)-k)#
-	triplet = unlist(triplets[k,])#
-	ll[k] = gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=1)#
-}
-#Save optimal triplet of parameters.#
-max.idx = which.max(ll)#
-opt.triplet = unlist(triplets[max.idx,])#
-ll[max.idx]#
-#
-round(opt.triplet,2)#
-#
-#Contour plot of marginal loglikelihood.#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20)
-#Grid mesh of parameters to test.#
-tau2.sq = 0#
-tau1.sq = seq(1,100,by=10)#
-b = seq(1,100,by=10)#
-#
-triplets = expand.grid(b,tau1.sq,tau2.sq)#
-#
-#Empty vector to hold marginal log-likelihoods.#
-ll = rep(0,nrow(triplets))#
-#
-ll = apply(triplets,2,gp.logl.y,x=x,y=y,mu=rep(0,length(x)),cov.fun=cov.se,sig2=.1)#
-#
-#Iterate through triplets.#
-for (k in 1:length(ll)){#
-	print(length(ll)-k)#
-	triplet = unlist(triplets[k,])#
-	ll[k] = gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=1)#
-}#
-#
-#save(ll,file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/RCode/marginalloglik.RData')#
-#
-#Save optimal triplet of parameters.#
-max.idx = which.max(ll)#
-opt.triplet = unlist(triplets[max.idx,])#
-ll[max.idx]#
-#
-round(opt.triplet,2)#
-#
-#Contour plot of marginal loglikelihood.#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20)
-#Empty vector to hold marginal log-likelihoods.#
-ll = rep(0,nrow(triplets))#
-#
-sig2=1#
-#
-#Iterate through triplets.#
-for (k in 1:length(ll)){#
-	print(length(ll)-k)#
-	triplet = unlist(triplets[k,])#
-	ll[k] = gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2)#
-}#
-#
-#save(ll,file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/RCode/marginalloglik.RData')#
-#
-#Save optimal triplet of parameters.#
-max.idx = which.max(ll)#
-opt.triplet = unlist(triplets[max.idx,])#
-ll[max.idx]#
-#
-round(opt.triplet,2)#
-#
-#Contour plot of marginal loglikelihood.#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20)
-#Grid mesh of parameters to test.#
-tau2.sq = 0#
-tau1.sq = seq(15,35,by=2)#
-b = seq(40,70,by=2)#
-#
-triplets = expand.grid(b,tau1.sq,tau2.sq)#
-#
-#Empty vector to hold marginal log-likelihoods.#
-ll = rep(0,nrow(triplets))#
-#
-sig2=1#
-#
-#Iterate through triplets.#
-for (k in 1:length(ll)){#
-	print(length(ll)-k)#
-	triplet = unlist(triplets[k,])#
-	ll[k] = gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2)#
-}#
-#
-#save(ll,file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/RCode/marginalloglik.RData')#
-#
-#Save optimal triplet of parameters.#
-max.idx = which.max(ll)#
-opt.triplet = unlist(triplets[max.idx,])#
-ll[max.idx]#
-#
-round(opt.triplet,2)#
-#
-#Contour plot of marginal loglikelihood.#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20)
-#Grid mesh of parameters to test.#
-tau2.sq = 0#
-tau1.sq = seq(15,60,by=2)#
-b = seq(40,70,by=2)#
-#
-triplets = expand.grid(b,tau1.sq,tau2.sq)#
-#
-#Empty vector to hold marginal log-likelihoods.#
-ll = rep(0,nrow(triplets))#
-#
-sig2=1#
-#
-#Iterate through triplets.#
-for (k in 1:length(ll)){#
-	print(length(ll)-k)#
-	triplet = unlist(triplets[k,])#
-	ll[k] = gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2)#
-}#
-#
-#save(ll,file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/RCode/marginalloglik.RData')#
-#
-#Save optimal triplet of parameters.#
-max.idx = which.max(ll)#
-opt.triplet = unlist(triplets[max.idx,])#
-ll[max.idx]#
-#
-round(opt.triplet,2)#
-#
-#Contour plot of marginal loglikelihood.#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20)
-#Contour plot of marginal loglikelihood.#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20)
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20)
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20,xlab='b',ylab='tau1.sq')
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20,xlab='b',ylab='tau1.sq')#
-points(opt.triplet[1],opt.triplet[2],pch=19,cex=2,col='red')
-#Grid mesh of parameters to test.#
-tau2.sq = 0#
-tau1.sq = seq(15,90,by=2)#
-b = seq(40,90,by=2)#
-#
-triplets = expand.grid(b,tau1.sq,tau2.sq)#
-#
-#Empty vector to hold marginal log-likelihoods.#
-ll = rep(0,nrow(triplets))#
-#
-sig2=1#
-#
-#Iterate through triplets.#
-for (k in 1:length(ll)){#
-	print(length(ll)-k)#
-	triplet = unlist(triplets[k,])#
-	ll[k] = gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2)#
-}#
-#
-#save(ll,file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/RCode/marginalloglik.RData')#
-#
-#Save optimal triplet of parameters.#
-max.idx = which.max(ll)#
-opt.triplet = unlist(triplets[max.idx,])#
-ll[max.idx]#
-#
-round(opt.triplet,2)#
-#
-#Contour plot of marginal loglikelihood.#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20,xlab='b',ylab='tau1.sq')#
-points(opt.triplet[1],opt.triplet[2],pch=19,cex=2,col='red')
-sig2
-#Grid mesh of parameters to test.#
-tau2.sq = 0#
-tau1.sq = seq(15,90,by=1)#
-b = seq(40,90,by=1)#
-triplets = expand.grid(b,tau1.sq,tau2.sq)#
-#
-#Empty vector to hold marginal log-likelihoods.#
-ll = rep(0,nrow(triplets))#
-#
-#Iterate through triplets.#
-for (k in 1:length(ll)){#
-	print(length(ll)-k)#
-	triplet = unlist(triplets[k,])#
-	ll[k] = gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=1)#
-}#
-#
-#save(ll,file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/RCode/marginalloglik.RData')#
-#
-#Save optimal triplet of parameters.#
-max.idx = which.max(ll)#
-opt.triplet = unlist(triplets[max.idx,])#
-ll[max.idx]#
-#
-#Contour plot of marginal loglikelihood.#
-pdf(file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/Figures/6_MargLogl_Y.pdf')#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20,xlab='b',ylab='tau1.sq',main=paste('Marginal Log-Likelihood of Y | sig2 = ',sig2),#
-	mtext=paste('Optimal b and tau1.sq: ',opt.triplet[1],opt.triplet[2]))#
-points(opt.triplet[1],opt.triplet[2],pch=19,cex=1,col='red')#
-dev.off()
-#Grid mesh of parameters to test.#
-tau2.sq = 0#
-tau1.sq = seq(15,90,by=.1)#
-b = seq(40,90,by=.1)#
-triplets = expand.grid(b,tau1.sq,tau2.sq)#
-#
-#Empty vector to hold marginal log-likelihoods.#
-ll = rep(0,nrow(triplets))#
-#
-#Iterate through triplets.#
-for (k in 1:length(ll)){#
-	print(length(ll)-k)#
-	triplet = unlist(triplets[k,])#
-	ll[k] = gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=1)#
-}#
-#
-#save(ll,file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/RCode/marginalloglik.RData')#
-#
-#Save optimal triplet of parameters.#
-max.idx = which.max(ll)#
-opt.triplet = unlist(triplets[max.idx,])#
-ll[max.idx]#
-#
-#Contour plot of marginal loglikelihood.#
-pdf(file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/Figures/6_MargLogl_Y.pdf')#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20,xlab='b',ylab='tau1.sq',main=paste('Marginal Log-Likelihood of Y | sig2 = ',sig2),#
-	mtext=paste('Optimal b and tau1.sq: ',opt.triplet[1],opt.triplet[2]))#
-points(opt.triplet[1],opt.triplet[2],pch=19,cex=1,col='red')#
-dev.off()
-#Grid mesh of parameters to test.#
-tau2.sq = 0#
-tau1.sq = seq(15,90,by=1)#
-b = seq(40,90,by=1)#
-triplets = expand.grid(b,tau1.sq,tau2.sq)#
-#
-#Empty vector to hold marginal log-likelihoods.#
-ll = rep(0,nrow(triplets))#
-#
-#Iterate through triplets.#
-for (k in 1:length(ll)){#
-	print(length(ll)-k)#
-	triplet = unlist(triplets[k,])#
-	ll[k] = gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=1)#
-}#
-#
-#save(ll,file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/RCode/marginalloglik.RData')#
-#
-#Save optimal triplet of parameters.#
-max.idx = which.max(ll)#
-opt.triplet = unlist(triplets[max.idx,])#
-ll[max.idx]#
-#
-#Contour plot of marginal loglikelihood.#
-pdf(file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/Figures/6_MargLogl_Y.pdf')#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20,xlab='b',ylab='tau1.sq',main=paste('Marginal Log-Likelihood of Y | sig2 = ',sig2),#
-	mtext=paste('Optimal b and tau1.sq: ',opt.triplet[1],opt.triplet[2]))#
-points(opt.triplet[1],opt.triplet[2],pch=19,cex=1,col='red')#
-dev.off()
-#Contour plot of marginal loglikelihood.#
-pdf(file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/Figures/6_MargLogl_Y.pdf')#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20,xlab='b',ylab='tau1.sq',main=paste('Marginal Log-Likelihood of Y | sig2 = ',sig2))#
-points(opt.triplet[1],opt.triplet[2],pch=19,cex=1,col='red')#
-mtext=paste('Optimal b and tau1.sq: ',opt.triplet[1],opt.triplet[2])#
-dev.off()
-pdf(file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/Figures/6_MargLogl_Y.pdf')#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20,xlab='b',ylab='tau1.sq',main=paste('Marginal Log-Likelihood of Y | sig2 = ',sig2),#
-	sub=paste('Optimal b and tau1.sq: ',opt.triplet[1],opt.triplet[2]))#
-points(opt.triplet[1],opt.triplet[2],pch=19,cex=1,col='red')#
-dev.off()
-#Contour plot of marginal loglikelihood.#
-pdf(file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/Figures/6_MargLogl_Y.pdf')#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20,xlab='b',ylab='tau1.sq',main=paste('Marginal Log-Likelihood of Y | sig2 = ',sig2),#
-	sub=paste('Optimal b and tau1.sq: ',opt.triplet[1],", " opt.triplet[2]))#
-points(opt.triplet[1],opt.triplet[2],pch=19,cex=1,col='red')#
-dev.off()
-#Contour plot of marginal loglikelihood.#
-pdf(file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/Figures/6_MargLogl_Y.pdf')#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20,xlab='b',ylab='tau1.sq',main=paste('Marginal Log-Likelihood of Y | sig2 = ',sig2),#
-	sub=paste('Optimal b and tau1.sq: ',opt.triplet[1],", ", opt.triplet[2]))#
-points(opt.triplet[1],opt.triplet[2],pch=19,cex=1,col='red')#
-dev.off()
-#Contour plot of marginal loglikelihood.#
-pdf(file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/Figures/6_MargLogl_Y.pdf')#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20,xlab='b',ylab='tau1.sq',main=paste('Marginal Log-Likelihood of Y | sig2 = ',sig2),#
-	sub=paste('Optimal b = ',opt.triplet[1], " tau1.sq = ",opt.triplet[2]))#
-points(opt.triplet[1],opt.triplet[2],pch=19,cex=1,col='red')#
-dev.off()
-#Contour plot of marginal loglikelihood.#
-pdf(file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/Figures/6_MargLogl_Y.pdf')#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20,xlab='b',ylab='tau1.sq',main=paste('Marginal Log-Likelihood of Y | sig2 = ',sig2),#
-	sub=paste('Optimal params: b = ',opt.triplet[1], " tau1.sq = ",opt.triplet[2]))#
-points(opt.triplet[1],opt.triplet[2],pch=19,cex=1,col='red')#
-dev.off()
-# (Repeating Part C, but with optimal parameters.)#
-#
-#Run prediction with sigma2=1 to estimate residuals.#
-pred = gp.predict(x,y,x.new=x,mu=rep(0,n),cov.fun=cov.se,params=opt.triplet,sig2=1)#
-#
-#Vectors to hold posterior mean, var, and CI bounds.#
-post.mean = pred$post.mean#
-post.se = sqrt(pred$post.var)#
-post.ci.lb = post.mean - 1.96*post.se#
-post.ci.ub = post.mean + 1.96*post.se#
-#
-#Plotting:#
-pdf('/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/Figures/6_E_opt_params.pdf')#
-x.new=x#
-idx = sort(x.new, index.return = T)$ix#
-plot(x,y,col='darkgrey',xlab='x',ylab='y',main='Utilities Data Posterior Mean and 95% CI with Optimal Parameters')#
-lines(x.new[idx],post.ci.lb[idx],col='red',lty=2)#
-lines(x.new[idx],post.ci.ub[idx],col='red',lty=2)#
-#
-#Shade confidence bands.#
-polygon(c(sort(x.new),rev(sort(x.new))),c(post.ci.ub[idx],rev(post.ci.lb[idx])),col='lightgrey',border=NA)#
-points(x,y)#
-lines(x.new[idx],post.mean[idx],col='blue')#
-#
-dev.off()
-#Plotting:#
-pdf('/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/Figures/6_E_opt_params.pdf')#
-x.new=x#
-idx = sort(x.new, index.return = T)$ix#
-plot(x,y,col='darkgrey',xlab='x',ylab='y',main='Utilities Data Posterior Mean and 95% CI with Optimal Parameters',#
-	sub=paste('Optimal params: b = ',opt.triplet[1], " tau1.sq = ",opt.triplet[2]))#
-lines(x.new[idx],post.ci.lb[idx],col='red',lty=2)#
-lines(x.new[idx],post.ci.ub[idx],col='red',lty=2)#
-#
-#Shade confidence bands.#
-polygon(c(sort(x.new),rev(sort(x.new))),c(post.ci.ub[idx],rev(post.ci.lb[idx])),col='lightgrey',border=NA)#
-points(x,y)#
-lines(x.new[idx],post.mean[idx],col='blue')#
-#
-dev.off()
-#Housekeeping.#
+#Housekeeping#
 rm(list=ls())#
 #
-#Load functions.#
-source('/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/RCode/SDS383D_Ex3_FUNCTIONS.R')#
-#
-#Load data.#
-utilities = read.csv('/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/statsmod/Course-Data/weather.csv',header=T)
-#Housekeeping.#
-rm(list=ls())#
+#Set working directory.#
+setwd('/Users/jennstarling/UTAustin/Research/ercot')#
 #
 #Load functions.#
-source('/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/RCode/SDS383D_Ex3_FUNCTIONS.R')#
-#
-#Load data.#
-weather = read.csv('/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/statsmod/Course-Data/weather.csv',header=T)
-head(weather)
-dim(weather)
-#Grid mesh of parameters to test.#
-tau2.sq = 0#
-tau1.sq = seq(0,20,by=.1)#
-b = seq(0,2,by=.1)#
-triplets = expand.grid(b,tau1.sq,tau2.sq)#
-#
-#Empty vector to hold marginal log-likelihoods.#
-ll = rep(0,nrow(triplets))#
-#
-#Iterate through triplets.#
-for (k in 1:length(ll)){#
-	print(length(ll)-k)#
-	triplet = unlist(triplets[k,])#
-	ll[k] = gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=1)#
-}#
-#
-#Save optimal triplet of parameters.#
-max.idx = which.max(ll)#
-opt.triplet = unlist(triplets[max.idx,])#
-ll[max.idx]#
-#
-#Contour plot of marginal loglikelihood.#
-pdf(file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/Figures/7_MargLogl_Y_Temp.pdf')#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20,xlab='b',ylab='tau1.sq',main=paste('Marginal Log-Likelihood of Y | sig2 = ',sig2),#
-	sub=paste('Optimal params: b = ',opt.triplet[1], " tau1.sq = ",opt.triplet[2]))#
-points(opt.triplet[1],opt.triplet[2],pch=19,cex=1,col='red')#
-dev.off()
-head(weather)
-x=weather$pressure#
-y=weather$pressure#
-#
-#Grid mesh of parameters to test.#
-tau2.sq = 0#
-tau1.sq = seq(0,20,by=.1)#
-b = seq(0,2,by=.1)#
-triplets = expand.grid(b,tau1.sq,tau2.sq)#
-#
-#Empty vector to hold marginal log-likelihoods.#
-ll = rep(0,nrow(triplets))#
-#
-#Iterate through triplets.#
-for (k in 1:length(ll)){#
-	print(length(ll)-k)#
-	triplet = unlist(triplets[k,])#
-	ll[k] = gp.logl.y(x,y,mu=rep(0,length(x)),cov.fun=cov.se,params=triplet,sig2=1)#
-}
-#Save optimal triplet of parameters.#
-max.idx = which.max(ll)#
-opt.triplet = unlist(triplets[max.idx,])#
-ll[max.idx]#
-#
-#Contour plot of marginal loglikelihood.#
-pdf(file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/Figures/7_MargLogl_Y_Temp.pdf')#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20,xlab='b',ylab='tau1.sq',main=paste('Marginal Log-Likelihood of Y | sig2 = ',sig2),#
-	sub=paste('Optimal params: b = ',opt.triplet[1], " tau1.sq = ",opt.triplet[2]))#
-points(opt.triplet[1],opt.triplet[2],pch=19,cex=1,col='red')#
-dev.off()
-sig2=1
-#Contour plot of marginal loglikelihood.#
-pdf(file='/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/Figures/7_MargLogl_Y_Temp.pdf')#
-z = matrix(ll,byrow=F,nrow=length(b))#
-contour(b,tau1.sq,z,nlevels=20,xlab='b',ylab='tau1.sq',main=paste('Marginal Log-Likelihood of Y | sig2 = ',sig2),#
-	sub=paste('Optimal params: b = ',opt.triplet[1], " tau1.sq = ",opt.triplet[2]))#
-points(opt.triplet[1],opt.triplet[2],pch=19,cex=1,col='red')#
-dev.off()
-head(weather)
-x = weather[,3:4]
-head(x)
-class(x)
-x = as.matrix(weather[,3:4])
-head(x)
-class(x)
-class(x)=='matrix'
-y = weather$temperature
-cov.fun=se.cov
-cov.fun=cov.se
-params=c(1,10,0)
-make.covmatrix(x,y,cov.se)
-params
-length(params)!=3 || prod(is.na(params))
-params
-n=100#
-x = sample(seq(0,1,.0001),n,replace=T)#
-#
-b = 1#
-tau1.sq = 1#
-tau2.sq = 0#
-triplet = c(b,tau1.sq,tau2.sq)
-make.covmatrix = function(x,y,cov.fun,params=NA){#
-	#-------------------------------------------------------------#
-	#FUNCTION: Assemble covariance matrix for a Gaussian Process w specified cov. function.#
-	#-------------------------------------------------------------#
-	#INPUTS:	x.i, x.j = two points from two vectors in same space.#
-	#			params = vector(b,tau1.sq,tau2.sq) of 3 hyperparameters,#
-	#				where:#
-	#				b = #
-	#				tau1.sq = #
-	#				tau2.sq = 	#
-	#-------------------------------------------------------------#
-	#OUTPUTS:#
-	#-------------------------------------------------------------#
-	#Check for valid hyperparameters.#
-	if(length(params)!=3 || prod(is.na(params))){#
-		return('Enter three valid hyperparameters in param vector.')#
-	}#
-	n1 = length(x)#
-	n2 = length(y)#
-	covmatrix = matrix(nrow=n1,ncol=n2)#
-	#UPDATE TO USE OUTER FUNCTION.#
-	for (i in 1:n1){#
-		for (j in 1:n2)#
-			covmatrix[i,j] = cov.fun(x[i],y[j],params)#
-	}#
-	return(covmatrix)#
-}
-cov.se
-x
-y
-#Load functions.#
-source('/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/Exercise-03/RCode/SDS383D_Ex3_FUNCTIONS.R')#
-#
-#Load data.#
-utilities = read.csv('/Users/jennstarling/UTAustin/2017S_Stats Modeling 2/statsmod/Course-Data/utilities.csv',header=T)#
-#
-#Extract data for model.#
-x = utilities$temp									#average temp.#
-y = utilities$gasbill / utilities$billingdays		#avg daily bill#
-n = length(x)
-x
-y
-length(x)
-length(y)
-n=100#
-x = sample(seq(0,1,.0001),n,replace=T)#
-#
-b = 1#
-tau1.sq = 1#
-tau2.sq = 0#
-triplet = c(b,tau1.sq,tau2.sq)#
-#
-cov.test = make.covmatrix(x,y,cov.fun-cov.se,params=triplet)
-cov.test = make.covmatrix(x,y,cov.fun=cov.se,params=triplet)
-dim(cov.test)
-x
-cov.test = make.covmatrix(x,y,cov.fun=cov.se,params=triplet)
-cov.test
-dim(cov.test)
-### Generate gaussian process realizations.#
-n=100#
-x = sample(seq(0,1,.0001),n,replace=T)#
-#
-b = 1#
-tau1.sq = 1#
-tau2.sq = 0#
-triplet = c(b,tau1.sq,tau2.sq)
-params
-x = seq(1,10,by=1)
-make.cov(x,x,cov.se,params=triplet)
-c = make.covmatrix(x,x,cov.se,params=triplet)
-dim(c)
-c
-chol(c)
-eigen(c)
-n1 = length(x)#
-	n2 = length(y)#
-	covmatrix = matrix(nrow=n1,ncol=n2)
-#UPDATE TO USE OUTER FUNCTION.#
-	for (i in 1:n1){#
-		for (j in 1:n2)#
-			covmatrix[i,j] = cov.fun(x[i],y[j],params)#
-	}
-covmatrix
-covmatrix2 = outer(x,y,cov.fun,params)
-head(covmatrix2)
-covmatrix2 = outer(x,y,cov.fun,params=params)
-covmatrix2
-cov.fun
-covmatrix2 = outer(x,y,cov.fun(x,y,params))
-covmatrix2 = outer(x,y,cov.fun,params=params)
-x
-y
-y=x
-covmatrix2 = outer(x,y,cov.fun,params=params)
-covmatrix2
-x
-y
-params
-?outer
-covmatrix2 = outer(x,y,cov.fun,params=params)
-covmatrix2
-#UPDATE TO USE OUTER FUNCTION.#
-	for (i in 1:n1){#
-		for (j in 1:n2)#
-			covmatrix[i,j] = cov.fun(x[i],y[j],params)#
-	}
-covmatrix
-x
-y
-n1 = length(x)#
-	n2 = length(y)
-#UPDATE TO USE OUTER FUNCTION.#
-	for (i in 1:n1){#
-		for (j in 1:n2)#
-			covmatrix[i,j] = cov.fun(x[i],y[j],params)#
-	}
-covmatrix
-params
-covmatrix2 = outer(x,y,cov.se,params=params)
-covmatrix2
-cov.se
-cov.se(x[1],y[1],params)
-covmatrix2 = outer(x,y,cov.se,params=params)
-covmatrix2
-x = rnorm(10,0,1)
-y=x
-covmatrix2 = outer(x,y,cov.se,params=params)
-covmatrix2
-cov.se(x[1],y[1],params)
-cov.se(x[1],y[2],params)
-bw.map <- get_map(location = as.numeric(rbind(lon.range, lat.range)), #
-                  source = "osm",col='bw')
-library(ggmap)
-bw.map <- get_map(location = 'depends on the format of the dataset',#
-                 maptype = 'terrain-background')
-bw.map <- get_map(location = as.numeric(rbind(lon.range, lat.range)), #
-                  source = "osm",col='bw')
-bw.map <- get_map(location = as.numeric(rbind(lon.range, lat.range)), #
-                  maptype='terrain-background')
-pred.values= cbind(x.new,temp.pred)#
-colnames(pred.vals.temp) = c('lon','lat','pred')
-head(pred.values)
-colnames(pred.values) = c('lon','lat','pred')
-head(pred.values)
-get_map?
-bw.map <- get_map(location = as.numeric(rbind(lon.range, lat.range)), #
-                  maptype='terrain-background')
-bw.map <- get_map(location = as.numeric(rbind(lon.range, lat.range)), #
-                  maptype='terrain-background',col='bw')
-bw.map <- get_map(location = as.numeric(rbind(lon.range, lat.range)), #
-                  maptype='terrain-background',col='bw',source='osm')
-bw.map <- get_map(location = as.numeric(rbind(lon.range, lat.range)), #
-                  maptype='terrain-background',col='bw',source='google')
-bw.map <- get_map(location = as.numeric(rbind(lon.range, lat.range)), #
-                  maptype='terrain-background',col='bw',source='google',urlonly=T)
-bw.map <- get_map(location = as.numeric(rbind(lon.range, lat.range)), #
-                  maptype='terrain-background',col='bw',source='stamen',urlonly=T)
-bw.map
-bw.map <- get_map(location = as.numeric(rbind(lon.range, lat.range)), #
-                  maptype='terrain-background',col='bw',source='stamen')
-= 4
-min = 4
-e = 3
-1/min
-1/3
-1/e
-sqrt(1/4)
-sqrt(1/3)
-max = 5
-min = 4
-e = 3
-sqrt(max/min)
-sqrt(1/e)
-install.packages('lars')
-length(y)
+source('R Code/JS_DLM_FUNCTIONS_R.R')#
+sourceCpp(file='R Code/JS_DLM_FUNCTIONS.cpp')
 #Housekeeping#
 rm(list=ls())#
 #
@@ -1456,32 +15,260 @@ setwd('/Users/jennstarling/UTAustin/Research/ercot')#
 #
 #Load functions.#
 source('R Code/JS_DLM_FUNCTIONS.R')#
-sourceCpp(file='R Code/JS_DLM_FUNCTIONS.cpp')#
-#
+sourceCpp(file='R Code/JS_DLM_FUNCTIONS.cpp')
 #Read in data.#
 y_all = readRDS('R Data Objects/dlm_y_allzones.rda')#
 F_all = readRDS('R Data Objects/dlm_F_allzones.rda')#
 G_all = readRDS('R Data Objects/dlm_G_allzones.rda')#
+#
 n_all = unlist(lapply(y_all,nrow))	#Sample sizes for each zone.#
 p_all = unlist(lapply(F_all,ncol))	#Number of predictors for each zone. #
 #
+n.zones = length(y_all)				#Number of zones.#
+#
 #================================================================#
-# DLM Model Fit Checks: SETUP ===================================#
+# Check Model Fit: ==============================================#
 #================================================================#
 #
-#Set up hyperparameters.  (Same for all zones.)#
-m0 = rep(0,p)#
-C0 = diag(10,p)#
+#Empty list to hold fit info for each zone.#
+zone_fit = list()
+Sys.time()	#Begin system time.#
 #
-# v ~ IG(.5,.5)#
-a.y = 1#
-b.y = 2	#
+#Loop through zones.#
+for (zone in 1:n.zones){#
+	### Extract zone information.#
 #
-# w_i ~ IG(.5,.5)#
-a.theta = rep(1,p)#
-b.theta = rep(2,p)#
+	#Extract DLM known data for selected zone.#
+	n = n_all[[zone]]#
+	p = p_all[[zone]]#
 #
-K = 96
-n.zones = length(y_all)
-n.zones
-Sys.time()
+	y = y_all[[zone]][,1,drop=T] #
+	F = F_all[[zone]]#
+	G = G_all[[zone]]#
+	#-----------------------------------------------------------#
+	#De-mean and scale data.#
+	ybar = mean(y)	#Save mean for un-scaling later.#
+	y = c(scale(y))#
+	F = as.matrix(cbind.data.frame(int=F[,1],scale(F[,2:4]),F[,5:p]))#
+	#-----------------------------------------------------------#
+	#Set up hyperparameters.  (Same for all zones.)#
+	m0 = rep(0,p)#
+	C0 = diag(10,p)#
+#
+	# v ~ IG(.5,.5)#
+	a.y = 1#
+	b.y = 2	#
+#
+	# w_i ~ IG(.5,.5)#
+	a.theta = rep(1,p)#
+	b.theta = rep(2,p)#
+#
+	#-----------------------------------------------------------#
+	# Testing model fit for windows of data of size 10000, forecasting 100 hours into future for each window.#
+	zone_fit[[zone]] = dlm.fittest.cv(y,F,G,K=100,m0,C0,a.y=1,b.y=2,a.theta,b.theta,win.size=10000,iter=11000,burn=1000)#
+	print(paste('Zone ',zone,' finished at ',Sys.time())) #Print finish time for each zone.#
+}
+Sys.time()	#Begin system time.#
+#
+#Loop through zones.#
+for (zone in 1:n.zones){#
+	### Extract zone information.#
+#
+	#Extract DLM known data for selected zone.#
+	n = n_all[[zone]]#
+	p = p_all[[zone]]#
+#
+	y = y_all[[zone]][,1,drop=T] #
+	F = F_all[[zone]]#
+	G = G_all[[zone]]#
+	#-----------------------------------------------------------#
+	#De-mean and scale data.#
+	ybar = mean(y)	#Save mean for un-scaling later.#
+	y = c(scale(y))#
+	F = as.matrix(cbind.data.frame(int=F[,1],scale(F[,2:4]),F[,5:p]))#
+	#-----------------------------------------------------------#
+	#Set up hyperparameters.  (Same for all zones.)#
+	m0 = rep(0,p)#
+	C0 = diag(10,p)#
+#
+	# v ~ IG(.5,.5)#
+	a.y = 1#
+	b.y = 2	#
+#
+	# w_i ~ IG(.5,.5)#
+	a.theta = rep(1,p)#
+	b.theta = rep(2,p)#
+#
+	#-----------------------------------------------------------#
+	# Testing model fit for windows of data of size 10000, forecasting 100 hours into future for each window.#
+	zone_fit[[zone]] = dlm.fittest.cv(y,F,G,K=100,m0,C0,a.y=1,b.y=2,a.theta,b.theta,win.size=10000,iter=1100,burn=1000)#
+	print(paste('Zone ',zone,' finished at ',Sys.time())) #Print finish time for each zone.#
+}
+names(zone_fit)
+ls()
+length(zone_fit)
+zone_fit[[1]]
+zone_fit[[1]]$mse
+names(zone_fit[[1]])
+plot(zone_fit[[1]]$y.pred,type='l',col='blue')#
+lines(zone_fit[[1]]$y.known,type='l')
+cbind(zone_fit[[1]]$y.pred,zone_fit[[1]]$y.known)
+dim(zone_fit[[1]]$y.pred)
+mean(zone_fit[[1]]$mse)
+ybar = lapply(y_all,mean)
+y_all
+class(y_all)
+ybar = lapply(y_all,colMeans)
+ybar
+library(matrixStats)
+ysig = unlist(lapply(y_all,colSds))
+ysig = unlist(lapply(y_all,colSds))
+# ysig = unlist(lapply(y_all,sd))
+ysig
+ysig = unlist(lapply(y_all,sd))
+ysig = unlist(lapply(y_all,colSds))
+ysig = unlist(lapply(y_all,colVars))
+length(y_all)
+class(y_all[[1]])
+ysig = unlist(lapply(y_all,function(x) colSds(as.matrix(x)))
+)
+ysig
+sd(y_all[[1]])
+sd(as.matrix(y_all[[1]]))
+ybar = unlist(lapply(y_all,colMeans))#
+ysig = unlist(lapply(y_all,function(x) colSds(as.matrix(x))))
+zone_fit[[1]]$mse#
+mean(zone_fit[[1]]$mse)#
+#
+cbind(zone_fit[[1]]$y.pred,zone_fit[[1]]$y.known)#
+#
+par(mfrow=c(3,3)) #One plot per window.#
+#
+for (i in 1:length(zone_fit$mse)){#
+	y.p = zone_fit[[1]]$y.pred[,i]#
+	y.k = zone_fit[[1]]$y.known[,i]#
+	plot(y.p,col='blue')#
+	points(y.k,col='red')#
+}
+i=1
+y.p = zone_fit[[1]]$y.pred[,i]#
+	y.k = zone_fit[[1]]$y.known[,i]
+names(zone_fit[[1]])
+y.p = zone_fit[[1]]$y.pred[,i]#
+	y.k = zone_fit[[1]]$y.known[,i]#
+	err = zone_fit[[1]]$error#
+	plot(err)
+err = zone_fit[[1]]$error[,i]
+plot(err)
+plot(err,type='l')
+plot(y.p,col='blue',type='l')
+plot(y.p,col='blue',type='l')#
+	points(y.k,col='red')
+plot(y.p,col='blue',type='l',ylim=c(-2,2))#
+	points(y.k,col='red',type='l')
+plot(y.p,col='blue',type='l',ylim=c(-2,2))#
+	points(y.k,col='black',type='l')#
+	points(err,col='red',type='l')
+#COAST PLOTTING#
+zone_fit[[1]]$mse#
+mean(zone_fit[[1]]$mse)#
+#
+cbind(zone_fit[[1]]$y.pred,zone_fit[[1]]$y.known)#
+#
+par(mfrow=c(3,3)) #One plot per window.#
+#
+for (i in 1:length(zone_fit$mse)){#
+	y.p = zone_fit[[1]]$y.pred[,i]#
+	y.k = zone_fit[[1]]$y.known[,i]#
+	err = zone_fit[[1]]$error[,i]#
+	plot(y.p,col='blue',type='l',ylim=c(-2,2))#
+	points(y.k,col='black',type='l')#
+	#points(err,col='red',type='l')#
+}
+dim(zone_fit[[1]]$y.pred)
+dim(zone_fit[[1]]$error)
+i=2
+y.p = zone_fit[[1]]$y.pred[,i]#
+	y.k = zone_fit[[1]]$y.known[,i]#
+	err = zone_fit[[1]]$error[,i]
+cbind(zone_fit[[1]]$y.pred,zone_fit[[1]]$y.known)#
+#
+par(mfrow=c(3,3)) #One plot per window.#
+#
+for (i in 1:length(zone_fit$mse)){#
+	y.p = zone_fit[[1]]$y.pred[,i]#
+	y.k = zone_fit[[1]]$y.known[,i]#
+	err = zone_fit[[1]]$error[,i]#
+	plot(y.p,col='blue',type='l',ylim=c(-2,2))#
+	points(y.k,col='black',type='l')#
+	#points(err,col='red',type='l')#
+}
+1:length(zone_fit$mse)
+par(mfrow=c(3,3)) #One plot per window.#
+#
+for (i in 1:9){#
+	y.p = zone_fit[[1]]$y.pred[,i]#
+	y.k = zone_fit[[1]]$y.known[,i]#
+	err = zone_fit[[1]]$error[,i]#
+	plot(y.p,col='blue',type='l',ylim=c(-2,2))#
+	points(y.k,col='black',type='l')#
+	#points(err,col='red',type='l')#
+}
+#Rescaled plots.#
+par(mfrow=c(3,3)) #One plot per window.#
+for (i in 1:9){#
+	yp.rescaled = zone_fit[[1]]$y.pred[,i]  * ysig[[1]] + ybar[[1]]#
+	yk.rescaled = zone_fit[[1]]$y.known[,i] * ysig[[1]] + ybar[[1]]#
+	err = yp.rescaled - yk.rescaled#
+	mse = mean(err^2)#
+	print(mse)#
+	plot(yp.rescaled,col='blue',type='l')#
+	points(yk.rescaled,col='black',type='l')#
+}
+range(yp.rescaled)
+#Rescaled plots.#
+par(mfrow=c(3,3)) #One plot per window.#
+for (i in 1:9){#
+	yp.rescaled = zone_fit[[1]]$y.pred[,i]  * ysig[[1]] + ybar[[1]]#
+	yk.rescaled = zone_fit[[1]]$y.known[,i] * ysig[[1]] + ybar[[1]]#
+	err = yp.rescaled - yk.rescaled#
+	mse = mean(err^2)#
+	print(mse)#
+	plot(yp.rescaled,col='blue',type='l',ylim=c(0,30000))#
+	points(yk.rescaled,col='black',type='l')#
+}
+#Plot un-rescaled data.#
+pdf('/Users/jennstarling/UTAustin/Research/ercot/Figures/Coast_Scaled.pdf')#
+par(mfrow=c(3,3)) #One plot per window.#
+for (i in 1:9){#
+	y.p = zone_fit[[1]]$y.pred[,i]#
+	y.k = zone_fit[[1]]$y.known[,i]#
+	err = zone_fit[[1]]$error[,i]#
+	plot(y.p,col='blue',type='l',ylim=c(-2,2),main=paste('Coast, window',i))#
+	points(y.k,col='black',type='l')#
+}#
+dev.off()#
+#
+#Rescaled plots.#
+pdf('/Users/jennstarling/UTAustin/Research/ercot/Figures/Coast_UnScaled.pdf')#
+par(mfrow=c(3,3)) #One plot per window.#
+for (i in 1:9){#
+	yp.rescaled = zone_fit[[1]]$y.pred[,i]  * ysig[[1]] + ybar[[1]]#
+	yk.rescaled = zone_fit[[1]]$y.known[,i] * ysig[[1]] + ybar[[1]]#
+	err = yp.rescaled - yk.rescaled#
+	mse = mean(err^2)#
+	print(mse)#
+	plot(yp.rescaled,col='blue',type='l',ylim=c(0,30000),main=paste('Coast, window',i))#
+	points(yk.rescaled,col='black',type='l')#
+}#
+dev.off()
+pdf('/Users/jennstarling/UTAustin/Research/ercot/Figures/Coast_Scaled.pdf')#
+par(mfrow=c(3,3)) #One plot per window.#
+for (i in 1:9){#
+	y.p = zone_fit[[1]]$y.pred[,i]#
+	y.k = zone_fit[[1]]$y.known[,i]#
+	err = zone_fit[[1]]$error[,i]#
+	plot(y.p,col='blue',type='l',ylim=c(-3,3),main=paste('Coast, window',i))#
+	points(y.k,col='black',type='l')#
+}#
+dev.off()

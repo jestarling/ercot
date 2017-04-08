@@ -77,11 +77,13 @@ mat rmvnormArma(int n, vec mu, mat sigma) {
 		 mat result = (repmat(mu, 1, n).t() + Y * chol(sigma)).t();
 		 return result;
 }
+} //end namespace dlm.
+
 
 //================================================================
 // DLM Full Conditional for Time-Constant Variance V =============
 //================================================================
-
+// [[Rcpp::export]]	
 double fullcond_v(double a, double b, mat F, mat theta, vec y){
 	//-------------------------------------------------------------
 	//FUNCTION: 	Samples from the full conditional of v|y,F,theta,a,b.
@@ -120,6 +122,7 @@ double fullcond_v(double a, double b, mat F, mat theta, vec y){
 //==================================================================
 // DLM Full Conditional for Time-Constant Diag W (Indep IG Priors) =
 //==================================================================
+// [[Rcpp::export]]	
 vec fullcond_w(vec a, vec b, mat G, mat theta, vec y, vec m0){
 	//-------------------------------------------------------------
 	//FUNCTION: 	Assuming W = diag(w1...wp), samples from the full
@@ -169,8 +172,8 @@ vec fullcond_w(vec a, vec b, mat G, mat theta, vec y, vec m0){
 		return(w);
 }
 
-} //End namespace dlm.
-//#############################################################################
+//} //End namespace dlm.
+//#############################################################################&=
 
 //================================================================
 // FFBS FUNCTION: ================================================
@@ -226,7 +229,7 @@ List ffbs(vec m0, mat C0, vec y, mat F, mat G, double v, mat W, int bs){
 	R.slice(0) = C0;	//Store for all time for backwards smoothing.
 	
 	double ft = as_scalar(Ft * a.col(0));
-	double Qt = as_scalar(1 + Ft * R.slice(0) * Ft.t());
+	double Qt = as_scalar(v + Ft * R.slice(0) * Ft.t());
 	vec At = R.slice(0) * Ft.t() / Qt;
 	double et = yt - ft;
 		
@@ -242,11 +245,11 @@ List ffbs(vec m0, mat C0, vec y, mat F, mat G, double v, mat W, int bs){
 	for(int t=1; t<T; ++t){
 		 Ft = F.row(t);
 		 yt = y(t);
-		 a.col(t) = G * a.col(t-1);
+		 a.col(t) = G * m.col(t-1);
 		 R.slice(t) = G * R.slice(t-1) * G.t() + W;
 		 
 		 ft = as_scalar(Ft * a.col(t));
-		 Qt = as_scalar(1 + Ft * R.slice(t) * Ft.t());
+		 Qt = as_scalar(v + Ft * R.slice(t) * Ft.t());
 		 At = R.slice(t) * Ft.t() / Qt;
 		 et = yt - ft;
 		 
@@ -259,8 +262,10 @@ List ffbs(vec m0, mat C0, vec y, mat F, mat G, double v, mat W, int bs){
 		 
 		 //Precache values for backwards sampling. H = backwards var, h = backwards mean.
 		 B.slice(t-1) = C.slice(t-1) * G.t() * inv(R.slice(t));
-		 H.slice(t-1) = C.slice(t-1) - B.slice(t-1) * G * C.slice(t-1);
-		 h.col(t-1) 	= m.col(t-1) + B.slice(t-1) * (theta.col(t) - a.col(t));				
+		 H.slice(t-1) = C.slice(t-1) - B.slice(t-1) * (R.slice(t) - B.slice(t-1)) 
+				* inv(R.slice(t)) * G * C.slice(t-1);
+		 h.col(t-1) = m.col(t-1) + B.slice(t-1) * (theta.col(t) - a.col(t));
+		 			
 	}	//end forward filter loop.
 	
 	//-------------------------------------------------------------
@@ -299,7 +304,9 @@ List ffbs(vec m0, mat C0, vec y, mat F, mat G, double v, mat W, int bs){
 	return Rcpp::List::create( 
 		_["theta_draw"] = theta_draw,
 		_["mt"] = mt,
-		_["Ct"] = Ct
+		_["Ct"] = Ct,
+		_["m_all_t"] = m,	
+		_["C_all_t"] = C
 	) ;		
 	
 }	 //End ffbs function.
@@ -309,7 +316,7 @@ List ffbs(vec m0, mat C0, vec y, mat F, mat G, double v, mat W, int bs){
 //================================================================
 
 // [[Rcpp::export]]	
-List forecast(vec mt, mat Ct, mat F, mat G, double v, mat W, int K=0){
+List forecast(vec mt, mat Ct, mat F, mat G, double v, mat W, int K){
 	//------------------------------------------------------------
 	//FUNCTION: 	DLM Forecasting k-steps ahead for future y values.
 	//			** If K = 0, returns Kalman Filter results at time t.
@@ -330,7 +337,7 @@ List forecast(vec mt, mat Ct, mat F, mat G, double v, mat W, int K=0){
 	//				pred.err = yt - y.pred at each time.
 	//-------------------------------------------------------------
 	
-	int T = K+1; 				//Number of time points.
+	int T = K; 					//Number of time points.
 	int p = F.n_cols;		//Number of covariates.
 	
 	//Placeholders for update variables at each time t.
@@ -342,11 +349,11 @@ List forecast(vec mt, mat Ct, mat F, mat G, double v, mat W, int K=0){
 	vec Q = zeros(T);				//Q(,,t) accesses matrix Q at time t.
 	
 	//--------------------------------
-	// Values at time t (ie K=0):
+	// Values at time t+1.
 	
-	// //theta mean and var updates. theta_{t} ~ N(mt,Ct)
-	a.col(0) = mt;
-	R.slice(0) = Ct;
+	//theta mean and var updates. theta_{t+k} ~ N(a_{t+k},R_{t+k})
+	a.col(0) = G * mt; 								//Because a0 = mt.
+	R.slice(0) = G * Ct * G.t() + W; 	//Because R0 = Ct.
 	
 	// y mean and var updates.  y_{t} ~ N(ft,Qt)
 	mat Ft = F.row(0);	//extract current covariates.
@@ -354,18 +361,18 @@ List forecast(vec mt, mat Ct, mat F, mat G, double v, mat W, int K=0){
 	Q(0) = as_scalar(v + Ft * R.slice(0) * Ft.t());
 	
 	//--------------------------------
-	//Values at times t+1, ..., t+K:	
-	for(int k=1; k<T; ++k){
-		
+	//Values at times t+2, ..., t+K:
+		for(int k=1; k<T; ++k){
+
 		//theta mean and var updates. theta_{t+k} ~ N(a_{t+k},R_{t+k})
 		a.col(k) = G * a.col(k-1);
 		R.slice(k) = G * R.slice(k-1)*G.t() + W;
-		
+
 		//y mean and var updates.
 		Ft = F.row(k);	//extract current covariates.
 		f(k) = as_scalar(Ft * a.col(k));
 		Q(k) = as_scalar(v + Ft * R.slice(k) * Ft.t());
-	
+
 	} //end {t+k} loop.
 	
 	//--------------------------------
@@ -375,24 +382,18 @@ List forecast(vec mt, mat Ct, mat F, mat G, double v, mat W, int K=0){
 	//		For speed, using r(0,1) Armadillo generator and 
 	//		un-standardizing with vectors of means (f) and sdevs (sqrt(Q))
 	
-	vec y_pred_draw = randn(K+1) % sqrt(Q) + f;
+	vec y_pred_draw = randn(T) % sqrt(Q) + f;
 	
 	//Rename parameters for forecast expected value and variance.  y_{t} | y_{1,...,t-1} ~ N(f_t, Q_t).	
 	vec y_pred_mean = f;				//y_pred_mean(,t) accesses vector y_pred_mean at time t.
 	vec y_pred_var = 	Q; 				//y_pred_var(,,t) accesses matrix y_pred_var at time t.
-	
-	//Placeholders to hold theta prediction mean, variance and draw values at each time.
-	mat theta_pred_mean = a;		//theta_pred_mean(,t) accesses vector theta_pred_mean at time t.
-	cube theta_pred_var = R;			//theta_pred_var(,,t) accesses matrix theta_pred_var at time t.
 		
 	//--------------------------------
 	//RETURN OUTPUT.
 		return Rcpp::List::create( 
 					_["y_pred_draw"] = y_pred_draw,
 					_["y_pred_mean"] = y_pred_mean,
-					_["y_pred_var"] = y_pred_var,						
-					_["theta_pred_mean"] = theta_pred_mean,
-					_["theta_pred_var"] = theta_pred_var
+					_["y_pred_var"] = y_pred_var
 		) ;	
 }	 //End forecast function.
 
@@ -463,10 +464,12 @@ List gibbs(vec m0, mat C0, vec y, mat F, mat G, double a_y, double b_y,
 			Ct.slice(b) = Rcpp::as<arma::mat>(foo["Ct"]);
 
 			//Update v.
-			v(b) = dlm::fullcond_v(a_y,b_y,F,theta.slice(b),y);
+			v(b) = fullcond_v(a_y,b_y,F,theta.slice(b),y);
+			//v(b) = dlm::fullcond_v(a_y,b_y,F,theta.slice(b),y);
 			
 			//Update w.
-			w.col(b) = dlm::fullcond_w(a_theta, b_theta, G, theta.slice(b), y, m0);
+			w.col(b) = fullcond_w(a_theta, b_theta, G, theta.slice(b), y, m0);
+			//w.col(b) = dlm::fullcond_w(a_theta, b_theta, G, theta.slice(b), y, m0);
 		}	 //end Gibbs Sampler.
 		
 		//Burn beginning observations.

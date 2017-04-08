@@ -87,7 +87,8 @@ for (i in 1:8){
 	}
 	colnames(F.hrdummies) = paste('hr.',c(0:23),sep='')
 	
-	F[[i]] = cbind.data.frame(F.int,F.temp,F.temp2,F.holiday,F.hrdummies)
+	F[[i]] = as.matrix(cbind.data.frame(F.int,F.temp,F.temp2,F.holiday,F.hrdummies))
+	
 }
 
 y_all = y

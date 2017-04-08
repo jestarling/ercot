@@ -6,7 +6,7 @@
 library(Rcpp)
 library(RcppArmadillo)
 
-sourceCpp(file='/Users/jennstarling/UTAustin/Research/ercot/R Code/JS_ercot_basic_dlm_FUNCTIONS.cpp')
+sourceCpp(file='/Users/jennstarling/UTAustin/Research/ercot/R Code/JS_DLM_FUNCTIONS_2.cpp')
 
 #================================================================
 # Model: ========================================================
@@ -64,8 +64,7 @@ dlm.fit = function(y,F,F.future,G,K,m0,C0,a.y=1,b.y=2,a.theta,b.theta,iter=11000
 	#Estimate parameters using ffbs via Gibbs Sampler.
 	params = gibbs(m0,C0,y,F,G,a.y,b.y,a.theta, b.theta, B=iter, burn=burn)
 	
-	#Forecast using estimated params.  Forecast includes current time t=0,
-	#and t+K additional values.
+	#Forecast using estimated params.  Forecast includes current time t+1 to t+K.
 	
 	mt = params$mt_pm
 	Ct = params$Ct_pm
@@ -74,12 +73,15 @@ dlm.fit = function(y,F,F.future,G,K,m0,C0,a.y=1,b.y=2,a.theta,b.theta,iter=11000
 	
 	fcast = forecast(mt,Ct,F.future,G,v,W,K)
 	
+	y.pred.draw = fcast$y_pred_draw
 	y.pred.mean = fcast$y_pred_mean
 	y.pred.var = fcast$y_pred_var
 	theta.pred.mean = fcast$theta_pred_mean
 	theta.pred.var = fcast$theta_pred_var
 	
-	return(list(y.pred.mean=y.pred.mean,
+	return(list(
+		y.pred.draw=y.pred.draw,
+		y.pred.mean=y.pred.mean,
 		y.pred.var = y.pred.var,
 		theta.pred.mean = theta.pred.mean,
 		theta.pred.var = theta.pred.var,
@@ -135,16 +137,21 @@ dlm.fittest = function(y,F,G,K,m0,C0,a.y=1,b.y=2,a.theta,b.theta,window,iter,bur
 	y.known = y[t0:tn]
 	F.known = F[t0:tn,]
 	
-	y.future = y[tn:(tn+K)]		#First row is value at t=n, the 'current' timepoint.
-	F.future = F[tn:(tn+K),]
+	y.future = y[(tn+1):(tn+K)]		#First row is value at t=n, the 'current' timepoint.
+	F.future = F[(tn+1):(tn+K),]
 	
 	fit = dlm.fit(y.known,F.known,F.future,G,K,m0,C0,a.y=1,b.y=2,a.theta,b.theta,iter,burn)
 	
-	y.pred = fit$y.pred.mean
-	pred.err = y.pred-y.future
-	mse = sum(pred.err^2) / (length(pred.err))
+	#Don't want t=current, just want t+1...t+k, so remove first value from y.future and y.pred.
+	y.draw = fit$y.pred.draw
+	pred.err = y.draw - y.future
+	mse = sum(pred.err^2)/length(pred.err)
 	
-	return(list(y.pred=y.pred,y=y.future,pred.err=pred.err,mse=mse))
+	#y.pred = fit$y.pred.mean
+	#pred.err = y.pred-y.future
+	#mse = sum(pred.err^2) / (length(pred.err))
+	
+	return(list(y.pred=y.draw,y=y.future,pred.err=pred.err,mse=mse))
 }
 
 #================================================================
@@ -178,25 +185,29 @@ dlm.fittest.cv = function(y,F,G,K=100,m0,C0,a.y=1,b.y=2,a.theta,b.theta,win.size
 	
 	#Calculate number of windows. (Windows shift forward by win.size/2 each time.)
 	n = length(y)
-	win = 0
+
 	start = 0
 	end = win.size
+	if(end + K > n){
+		print('Error: win.size + K cannot exceed length(y).')
+	}
 	
 	t0 = start	#Vector to hold start points for each window.
 	tn = end	#Vector to hold endpoints for each window.
+	win = 1
 	
 	for (i in 2:n){
 		start 	= t0[i] = end - win.size/2
 		end 	= tn[i] = start + win.size
-		if (end + K >= n) break
+		if (end + K > n) break
 		win = win + 1
 	}
 	
 	#-------------------------------------------------------------
 	#Initialize predicted, actual y values, error, and mse.
-	y.pred = matrix(0,K+1,win)	#Each column is a vector of K predicted values for a single window.
-	y.known = matrix(0,K+1,win)	#Each col is a vector of K 'known' values for a single window.
-	error = matrix(0,K+1,win)		#Each col is a vector of K errors for a single window.
+	y.pred = matrix(0,K,win)	#Each column is a vector of K predicted values for a single window.
+	y.known = matrix(0,K,win)	#Each col is a vector of K 'known' values for a single window.
+	error = matrix(0,K,win)		#Each col is a vector of K errors for a single window.
 	mse = rep(0,win)			#Vector of MSE values for each window.
 		
 	#Loop through each window.

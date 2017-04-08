@@ -12,7 +12,7 @@ setwd('/Users/jennstarling/UTAustin/Research/ercot')
 
 #Load functions.
 source('R Code/JS_DLM_FUNCTIONS.R')
-sourceCpp(file='R Code/JS_DLM_FUNCTIONS.cpp')
+sourceCpp(file='R Code/JS_DLM_FUNCTIONS_2.cpp')
 
 #Read in data.
 y_all = readRDS('R Data Objects/dlm_y_allzones.rda')
@@ -69,7 +69,7 @@ F.future = F[max(t.known):(max(t.known)+K),]
 #---------------------------------------------------------------
 # 1. Test Rcpp Gibbs Sampler.
 
-test.gibbs = gibbs(m0,C0,y.known,F.known,G,a.y,b.y,a.theta, b.theta, B=1100, burn=100)
+test.gibbs = gibbs(m0,C0,y.known,F.known,G,a.y,b.y,a.theta, b.theta, B=20, burn=1)
 
 test.gibbs
 names(test.gibbs)
@@ -80,12 +80,15 @@ W = diag(as.numeric(test.gibbs$w_pm))
 #---------------------------------------------------------------
 # 2. Test Rcpp ffbs function.
 
-test.ffbs = ffbs(m0,C0,y.known,F.known,G,v,W,bs=0)
+test.ffbs = ffbs(m0,C0,y.known,F.known,G,v,W,bs=1)
 test.ffbs
-names(test.f)
+names(test.ffbs)
 
 mt = test.ffbs$mt
 Ct = test.ffbs$Ct
+
+test.ffbs$m_all_t
+test.ffbs$C_all_t
 
 #---------------------------------------------------------------
 # 3. Test Rcpp forecast function.
@@ -94,19 +97,29 @@ test.f = forecast(mt,Ct,F = F.future, G=G, v=v, W=W, K)
 test.f
 names(test.f)
 
-cbind(y.future,test.f$y_pred_mean)
+cbind(y.future,y.draw=test.f$y_pred_draw,y.mean=test.f$y_pred_mean,y.var=test.f$y_pred_var)
+
+plot(test.f$y_pred_draw,type='l',col='blue')
+lines(y.future)
 
 #---------------------------------------------------------------
 # 4. Test dlm.fit function.
-test.fit = dlm.fit(y.known,F.known,F.future,G,K,m0,C0,a.y=1,b.y=2,a.theta,b.theta,iter=1100,burn=2)
+test.fit = dlm.fit(y.known,F.known,F.future,G,K,m0,C0,a.y=1,b.y=2,a.theta,b.theta,iter=5,burn=1)
 test.fit
 names(test.fit)
 
 #---------------------------------------------------------------
 # 5. Test dlm.fittest function.
-window=c(100,200)
-test.fittest = dlm.fittest(y,F,G,K,m0,C0,a.y=1,b.y=2,a.theta,b.theta,window,iter=11000,burn=2)
+window=c(0,10000)
+test.fittest = dlm.fittest(y,F,G,K,m0,C0,a.y=1,b.y=2,a.theta,b.theta,window,iter=5,burn=2)
 test.fittest
 names(test.fittest)
+
+#---------------------------------------------------------------
+# 6. Test full conditionals for v and w.
+theta = test.ffbs$theta_draw
+v.draw = fullcond_v(a.y,b.y,F.known,theta, y.known)
+w.draw = fullcond_w(a.theta,b.theta,G,theta,y.known,m0)
+
 
 
