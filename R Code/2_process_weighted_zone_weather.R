@@ -77,3 +77,13 @@ zone_windspd = zone_windspd[,zone.order]
 write.csv(zone_temp,file='data/weather_processed_by_zone/zone_temp.csv')
 write.csv(zone_dewpt,file='data/weather_processed_by_zone/zone_dewpt.csv')
 write.csv(zone_windspd,file='data/weather_processed_by_zone/zone_windspd.csv')
+
+#------------------------------------------------------------------
+#Latex table for zone weights.
+zone_weights_pretty$zone = c('North','North','North Central','North Central','North Central',
+	'East','East',
+	'Far West','Far West','West','West','West','South Central','South Central','Coast','Coast',
+	'Coast','Southern','Southern','Southern')
+
+library(xtable)
+xtable(zone_weights_pretty)

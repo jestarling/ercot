@@ -1,4 +1,4 @@
-#ERCOT Forecasting - Basic DLM Model
+#ERCOT Forecasting - Basic DLM Model Fit Test on Single Zone, one window.
 
 #================================================================
 # Read in load and dlm data =====================================
@@ -29,95 +29,19 @@ ybar = unlist(lapply(y_all,colMeans))
 ysig = unlist(lapply(y_all,function(x) colSds(as.matrix(x)))) 
 
 #================================================================
-# Check Model Fit: ==============================================
+# Extract Data for Zone 1: ======================================
 #================================================================
-
-#Empty list to hold fit info for each zone.
-zone_fit = list()
-
-Sys.time()	#Begin system time.
-
-#Loop through zones.
-for (zone in 1:n.zones){
-	
-	### Extract zone information.
-
-	#Extract DLM known data for selected zone.
-	n = n_all[[zone]]
-	p = p_all[[zone]]
-
-	y = y_all[[zone]][,1,drop=T] 
-	F = F_all[[zone]]
-	G = G_all[[zone]]
-	
-	#-----------------------------------------------------------
-	#De-mean and scale data.
-	ybar = mean(y)	#Save mean for un-scaling later.
-	y = c(scale(y))
-	F = as.matrix(cbind.data.frame(int=F[,1],scale(F[,2:4]),F[,5:p]))
-	
-	#-----------------------------------------------------------
-	#Set up hyperparameters.  (Same for all zones.)
-	m0 = rep(0,p)
-	C0 = diag(10,p)
-
-	a.y = .1
-	b.y = .01
-
-	a.theta = rep(.1,p)
-	b.theta = rep(.01,p)
-
-	#-----------------------------------------------------------
-	# Testing model fit for windows of data of size 10000, forecasting 100 hours into future for each window.
-	zone_fit[[zone]] = dlm.fittest.cv(y,F,G,K=100,m0,C0,a.y=1,b.y=2,a.theta,b.theta,win.size=10000,iter=1100,burn=1000)
-	
-	print(paste('Zone ',zone,' finished at ',Sys.time())) #Print finish time for each zone.
-} 
-
-#COAST PLOTTING
-zone_fit[[1]]$mse
-mean(zone_fit[[1]]$mse)
-
-cbind(zone_fit[[1]]$y.pred,zone_fit[[1]]$y.known)
-
-#Plot un-rescaled data.
-pdf('/Users/jennstarling/UTAustin/Research/ercot/Figures/Coast_Scaled.pdf')
-par(mfrow=c(3,3)) #One plot per window.
-for (i in 1:9){
-	y.p = zone_fit[[1]]$y.pred[,i]
-	y.k = zone_fit[[1]]$y.known[,i]
-	err = zone_fit[[1]]$error[,i]
-	
-	plot(y.p,col='blue',type='l',ylim=c(-3,3),main=paste('Coast, window',i))
-	points(y.k,col='black',type='l')
-}
-dev.off()
-
-#Rescaled plots.
-pdf('/Users/jennstarling/UTAustin/Research/ercot/Figures/Coast_UnScaled.pdf')
-par(mfrow=c(3,3)) #One plot per window.
-for (i in 1:9){
-	yp.rescaled = zone_fit[[1]]$y.pred[,i]  * ysig[[1]] + ybar[[1]]
-	yk.rescaled = zone_fit[[1]]$y.known[,i] * ysig[[1]] + ybar[[1]]
-	err = yp.rescaled - yk.rescaled
-	mse = mean(err^2)
-	
-	print(mse)
-	plot(yp.rescaled,col='blue',type='l',ylim=c(0,30000),main=paste('Coast, window',i))
-	points(yk.rescaled,col='black',type='l')
-}
-dev.off()
-
-#================================================================
-# Fit Troubleshooting - Small Scale: ============================
-#================================================================
-
-#Set parameters for # iterations and burn.
-iter = 110
-burn = 10
 
 ### Work with Zone = COAST, Window 9:  Obs  
 zone=1
+
+### Extract zone information.
+n = n_all[[zone]]
+p = p_all[[zone]]
+
+y = y_all[[zone]][,1,drop=T] 
+F = F_all[[zone]]
+G = G_all[[zone]]
 
 ### Select a subset of 10K 'known' plus following 100 'unknown' observations for testing.
 ### (COAST Window 9)
@@ -126,94 +50,77 @@ t0 = 40000
 tn = 50000 - 1
 K = 100
 
+#Select subset specified above.
+y = y[t0:(tn+K)]
+F = F[t0:(tn+K),]
+	
+#-----------------------------------------------------------
+#De-mean and scale data.
+ybar = mean(y)	#Save mean for un-scaling later.
+y = c(scale(y))
+F = as.matrix(cbind.data.frame(int=F[,1],scale(F[,2:4]),F[,5:p]))
 
 #-----------------------------------------------------------
-### Extract zone information.
-
-	#Extract DLM known data for selected zone.
-	n = n_all[[zone]]
-	p = p_all[[zone]]
-
-	y = y_all[[zone]][,1,drop=T] 
-	F = F_all[[zone]]
-	G = G_all[[zone]]
-	
-	#Select subset specified above.
-	y = y[t0:(tn+K)]
-	F = F[t0:(tn+K),]
-	
-	#-----------------------------------------------------------
-	#De-mean and scale data.
-	ybar = mean(y)	#Save mean for un-scaling later.
-	y = c(scale(y))
-	F = as.matrix(cbind.data.frame(int=F[,1],scale(F[,2:4]),F[,5:p]))
-	
-	#-----------------------------------------------------------
-	#Set up data subset into known/future and plot y values to be forecasted.
-	plot(y[10000:10100],type='l')
-
-	# Data setup.
-	t0 = 0
-	tn = 10000
-	K = 100
-
-	y.known = y[t0:tn]
-	F.known = F[t0:tn,]
-	
-	y.future = y[(tn+1):(tn+K)]
-	F.future = F[(tn+1):(tn+K),]
-	
-	#-----------------------------------------------------------
-	#Set up hyperparameters.  (Same for all zones.)
-	m0 = rep(0,p)
-	C0 = diag(1,p)
-
-	a.y = .1
-	b.y = .1
-
-	a.theta = rep(.1,p)
-	b.theta = rep(.1,p)
-
-#-----------------------------------------------------------
-### ASSESS HOURLY DUMMY VARIABLES:
-### Assess potential issues with 24-hours dummy variables.
-### Goal: Plot each 24-hour dummy variable's Gibbs iterations.
-### Look for patterns/shark teeth where prior may be zeroing out interim obs.
-
-#First run Gibbs Sampler to obtain v and W.
-test.gibbs = gibbs(m0,C0,y.known,F.known,G,a.y,b.y,a.theta, b.theta, B=iter, burn)
-v = test.gibbs$v_pm
-W = diag(as.numeric(test.gibbs$w_pm))
-
-Ct = test.gibbs$Ct_pm
-cbind(W=round(diag(W),2),Ct=round(diag(Ct),2))
-
-#Run FFBS to obtain mt for all time values. (Gibbs only returns most recent.)
-test.ffbs = ffbs(m0,C0,y.known,F.known,G,v,W,bs=1)
-
-#Plot each hour-of-day dummy var over time.
-pdf('/Users/jennstarling/UTAustin/Research/ercot/Figures/Coast_Win9_Hour Dummies Over Time.pdf',width=18,height=12)
-par(mfrow=c(6,4),oma=c(1,1,0,0) + .1, mar=c(0,0,1,1)+1)
-for (i in 1:24){
-	plot(test.ffbs$m_all_t[i,],type='l',xlab=paste('Hr',i-1))
-	legend('topright',paste('Hr:',i-1))
-}
+#Set up data subset into known/future and plot y values to be forecasted.
+pdf('/Users/jennstarling/UTAustin/Research/ercot/Figures/COAST_Window 9_y.pdf')
+plot(y[10000:10100],type='l', main='Coast, Window 9 (Obs 40K to 50,100)')
 dev.off()
 
-#-----------------------------------------------------------
-### IN-SAMPLE FIT:
-### Try an in-sample fit plot using the same v and W as above.
+#Set 'known' and 'future' y data sets based on selected window.
+t0 = 0
+tn = 10000
+K = 100
+
+y.known = y[t0:tn]
+F.known = F[t0:tn,]
+	
+y.future = y[(tn+1):(tn+K)]
+F.future = F[(tn+1):(tn+K),]
+
+length(y.known)
+dim(F.known)
+length(y.future)
+dim(F.future)	
+
+#================================================================
+# Hyperparameter Setup: =========================================
+#================================================================
+
+#Set up hyperparameters.  (Same for all zones.)
+m0 = rep(0,p)
+C0 = diag(1,p)
+
+a.y = .1
+b.y = .1
+
+a.theta = rep(.1,p)
+b.theta = rep(.1,p)
+
+#================================================================
+# In-Sample Fit Testing: ========================================
+#================================================================
+
+#Set parameters for # iterations and burn.
+iter = 1100
+burn = 100
+
+test.in.samp = gibbs(m0,C0,y.known,F.known,G,a.y,b.y,a.theta, b.theta, B=iter, burn)
 
 #Calculate in-sample y values: y.t = F.t'theta.t
-theta = test.gibbs$theta_pm
-v = test.gibbs$v_pm
-y.insamp = rowSums(F.known * t(theta))	
+theta 	 = test.in.samp$theta_pm
+v 		 = test.in.samp$v_pm
+y.insamp = rowSums(F.known * t(theta))	#ASK ABOUT THIS FORMULA!
 
 #In-sample MSE.
 mse.insamp = round(sum((y.known - y.insamp)^2) / length(y.known),8)
 
 #Preview results.
 head(cbind(y.insamp,y.known)) 
+
+cbind.data.frame(theta.pm.t=test.in.samp$theta_pm_t, 
+	w = test.in.samp$w_pm, 
+	diag.Ct = diag(test.in.samp$Ct_pm)
+	)
 
 #Plot results.
 pdf('/Users/jennstarling/UTAustin/Research/ercot/Figures/Coast_Win9_Scaled_InSample.pdf',width=12,height=6)
@@ -232,24 +139,38 @@ pdf('/Users/jennstarling/UTAustin/Research/ercot/Figures/Coast_Win9_Scaled_InSam
 dev.off()
 
 #-----------------------------------------------------------
-### PLOT PREDICTED VALUES:
-### Try plotting predicted means and predicted draws for y.
+### ASSESS HOURLY DUMMY VARIABLES:
+### Assess potential issues with 24-hours dummy variables.
+### Goal: Plot each 24-hour dummy variable's Gibbs iterations.
+### Look for patterns/shark teeth where prior may be zeroing out interim obs.
 
-# Data setup.
-t0 = 0
-tn = 10000
-K = 100
+#Use Ct, v, and W from gibbs sampler above.
+v = test.in.samp$v_pm
+W = diag(as.numeric(test.in.samp$w_pm))
 
-y.known = y[t0:tn]
-F.known = F[t0:tn,]
-	
-y.future = y[(tn+1):(tn+K)]
-F.future = F[(tn+1):(tn+K),]
+Ct = test.in.samp$Ct_pm
 
+#Run FFBS to obtain mt for all time values. (Gibbs only returns most recent.)
+test.ffbs = ffbs(m0,C0,y.known,F.known,G,v,W)
 
+#Plot each hour-of-day dummy var over time.
+pdf('/Users/jennstarling/UTAustin/Research/ercot/Figures/Coast_Win9_Hour Dummies Over Time.pdf',width=18,height=12)
+par(mfrow=c(6,4),oma=c(1,1,0,0) + .1, mar=c(0,0,1,1)+1)
+for (i in 5:27){
+	plot(test.ffbs$m[i,],type='l',xlab=paste('Hr',i-1))
+	legend('topright',paste('Hr:',i-1))
+}
+dev.off()
+
+#================================================================
+# Forecast Testing For Next 100 Obs: ============================
+#================================================================
 
 # Run DLM fit and save predicted values.
 coast_win9 = dlm.fit(y.known,F.known,F.future,G,K,m0,C0,a.y=1,b.y=2,a.theta,b.theta,iter,burn)
+
+
+
 y.pr = coast_win9$y.pred.draw
 
 

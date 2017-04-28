@@ -60,7 +60,8 @@ sum(!(load$Time %in% bushr$datetime))
 
 #Create DLM matrices and vectors for each zone.
 n = nrow(load)	#Num observations.
-p = 28			#Num predictors.
+#p = 28			#Num predictors.
+p = 27			#Num predictors - Adjusted to fix overparameterization (Hour 0 = baseline)
 
 #Data structures to hold one set of y, G, F per zone, and one for entire ercot.
 y = list()
@@ -80,12 +81,12 @@ for (i in 1:8){
 	F.temp = zone_temp[which(rownames(zone_temp) %in% load$Time),i] 	
 	F.temp2 = F.temp^2
 	F.holiday = bushr[which(bushr$datetime %in% load$Time),2]		
-	F.hrdummies = matrix(0,nrow=n,ncol=24)	#Hours 00 (midnight) is baseline.
+	F.hrdummies = matrix(0,nrow=n,ncol=23)	#Hours 00 (midnight) is baseline.
 	
-	for (j in 0:23){
+	for (j in 0:22){
 		F.hrdummies[,j+1] = as.numeric(substr(load$Time,12,13))==j
 	}
-	colnames(F.hrdummies) = paste('hr.',c(0:23),sep='')
+	colnames(F.hrdummies) = paste('hr.',c(1:23),sep='')
 	
 	F[[i]] = as.matrix(cbind.data.frame(F.int,F.temp,F.temp2,F.holiday,F.hrdummies))
 	
