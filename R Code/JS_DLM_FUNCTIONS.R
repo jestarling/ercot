@@ -95,14 +95,7 @@ dlm.fit = function(y, F, F.future, G, K, m0, C0, a.y=1, b.y=2, a.theta, b.theta,
 	
 	theta.pred.mean = fcast$theta_pred_mean
 	theta.pred.var  = fcast$theta_pred_var
-	
-	#-------------------------------------------------------------
-	# MSE Calculation.
-	#-------------------------------------------------------------
-	
-	# Calculate MSE.pred as sum((y.pred.mean - y.future.)^2)
-	MSE.pred = sum((y - y.pred.mean)^2) / length(y)
-	
+		
 	#-------------------------------------------------------------
 	#Return output.
 	#-------------------------------------------------------------
@@ -115,8 +108,8 @@ dlm.fit = function(y, F, F.future, G, K, m0, C0, a.y=1, b.y=2, a.theta, b.theta,
 		mt 				= mt,
 		Ct 				= Ct,
 		v				= v,
-		W				= W,
-		MSE.pred 		= MSE.pred ))	
+		W				= W 
+	))	
 
 } # End dlm.fit function.
 
@@ -180,17 +173,28 @@ dlm.fittest = function(y, F, G, K, m0, C0, a.y=1, b.y=2, a.theta, b.theta, windo
 	# Call DLM to predict future observations.
 	#-------------------------------------------------------------
 	
-	fit = dlm.fit(y.known,F.known,F.future,G,K,m0,C0,a.y=1,b.y=2,a.theta,b.theta,iter,burn)
+	fit = dlm.fit(y.known,F.known,F.future,G,K,m0,C0,a.y,b.y,a.theta,b.theta,iter,burn)
+	
+	#-------------------------------------------------------------
+	# MSE Calculation.
+	#-------------------------------------------------------------
+	
+	# Calculate MSE.pred as sum((y.pred.mean - y.future.)^2)
+	y.pred = fit$y.pred.mean
+	MSE.pred = mean((y.future - y.pred)^2)
 	
 	#-------------------------------------------------------------
 	#Return output.
 	#-------------------------------------------------------------
 	
 	return(list(
-		y.pred	 = y.draw,
-		y		 = y.future,
-		pred.err = pred.err,
-		mse		 = fit$MSE.pred))
+		y.pred.mean	 = y.pred,
+		y.pred.var 	 = fit$y.pred.var,
+		y.future	 = y.future,
+		F.future 	 = F.future,
+		fit   		 = fit,			#Contains mt, Ct, v, W
+		mse		 	 = MSE.pred
+	))
 
 } #End dlm.fittest function.
 
@@ -247,11 +251,14 @@ dlm.fittest.cv = function(y, F, G, K=100, m0, C0, a.y=1, b.y=2, a.theta, b.theta
 	}
 	
 	#-------------------------------------------------------------
-	#Initialize predicted, actual y values, error, and mse.
+	#Initialize future predicted y, future actual y values, error, and mse.
 	#-------------------------------------------------------------
 	
-	y.pred 	= matrix(0,K,win)	#Each column is a vector of K predicted values for a single window.
-	y.known = matrix(0,K,win)	#Each col is a vector of K 'known' values for a single window.
+	y.pred.mean = matrix(0,K,win)  #Each column is a vector of K values for a single window.
+	y.pred.var  = matrix(0,K,win)  #Each column is a vector of K values for a single window.
+
+	y.future = matrix(0,K,win)	#Each col is a vector of 'known' values for a single window.
+	
 	error 	= matrix(0,K,win)	#Each col is a vector of K errors for a single window.
 	mse 	= rep(0,win)		#Vector of MSE values for each window.
 		
@@ -265,19 +272,24 @@ dlm.fittest.cv = function(y, F, G, K=100, m0, C0, a.y=1, b.y=2, a.theta, b.theta
 		test = dlm.fittest(y,F,G,K,m0,C0,a.y=1,b.y=2,a.theta,b.theta,window,iter,burn)
 		
 		#Save values.
-		y.pred[,i] = test$y.pred
-		y.known[,i] = test$y
-		error[,i] = test$pred.err
-		mse[i] = test$mse
+		y.pred.mean[,i] = test$y.pred.mean
+		y.pred.var[,i]	= test$y.pred.var
+		y.future[,i] 	= test$y.future
+		error[,i] 		= test$y.future - test$y.pred.mean
+		mse[i] 			= test$mse
 	}
 	
 	#-------------------------------------------------------------
 	#Return output.
 	#-------------------------------------------------------------
 	
+	colnames(y.pred.mean) = colnames(y.pred.var) = colnames(y.future) = colnames(error) = 
+		paste('window.',1:win,sep='')
+	
 	return(list(
-		y.pred	= y.pred, 
-		y.known	= y.known, 
-		error	= error, 
-		mse		= mse))	
+		y.pred.mean	= y.pred.mean,
+		y.pred.var 	= y.pred.var, 
+		y.future	= y.future, 
+		error		= error, 
+		mse			= mse))	
 }

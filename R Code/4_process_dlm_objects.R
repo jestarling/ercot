@@ -96,6 +96,8 @@ y_all = y
 F_all = F
 G_all = G
 
+names(y) = names(F_all) = names(G_all) = colnames(zone_temp)
+
 #Output R objects.
 saveRDS(y_all,'R Data Objects/dlm_y_allzones.rda')
 saveRDS(F_all,'R Data Objects/dlm_F_allzones.rda')
