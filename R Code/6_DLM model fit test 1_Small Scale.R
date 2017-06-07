@@ -24,6 +24,8 @@ y_all = readRDS('R Data Objects/dlm_y_allzones.rda')
 F_all = readRDS('R Data Objects/dlm_F_allzones.rda')
 G_all = readRDS('R Data Objects/dlm_G_allzones.rda')
 
+datetime_info = readRDS('R Data Objects/dlm_datetime_info.rda')
+
 n_all = unlist(lapply(y_all,nrow))	#Sample sizes for each zone.
 p_all = unlist(lapply(F_all,ncol))	#Number of predictors for each zone. 
 
@@ -57,12 +59,19 @@ K = 100
 #Select subset specified above.
 y = y[t0:(tn+K)]
 F = F[t0:(tn+K),]
+dt.info = datetime_info[t0:(tn+K),]
 	
 #-----------------------------------------------------------
 #De-mean and scale data.
 ybar = mean(y)	#Save mean for un-scaling later.
 y = c(scale(y))
 F = as.matrix(cbind.data.frame(int=F[,1],scale(F[,2:4]),F[,5:p]))
+
+#-----------------------------------------------------------
+# Select covariates to include.  (UPDATE COMMENT WHEN MAKING CHANGES!)
+#F = F[,1:27] #Excluding daily dummies.
+#p = ncol(F)
+#G = diag(p)
 
 #-----------------------------------------------------------
 #Set up data subset into known/future for in-sample fit testing.
@@ -177,9 +186,34 @@ test.ffbs = ffbs(m0,C0,y.known,F.known,G,v,W)
 pdf('/Users/jennstarling/UTAustin/Research/ercot/Figures/Small Scale Fit Test/2_Coast_Win9_Hour Dummies Over Time.pdf',width=18,height=12)
 
 	par(mfrow=c(6,4),oma=c(1,1,0,0) + .1, mar=c(0,0,1,1)+1)
-	for (i in 5:27){
-		plot(test.ffbs$m[i,],type='l',xlab=paste('Hr',i-1))
-		legend('topright',paste('Hr:',i-1))
+	for (i in 5:27){ 
+		plot(test.ffbs$m[i,],type='l',xlab=paste('Hr',i-5))
+		legend('topright',paste('Hr:',i-5))
+	}
+dev.off()
+
+#-----------------------------------------------------------
+### ASSESS DAILY DUMMY VARIABLES:
+### Assess potential issues with 24-hours dummy variables.
+### Goal: Plot each 24-hour dummy variable's Gibbs iterations.
+### Look for patterns/shark teeth where prior may be zeroing out interim obs.
+
+#Use Ct, v, and W from gibbs sampler above.
+v = test.in.samp$v_pm
+W = diag(as.numeric(test.in.samp$w_pm))
+
+Ct = test.in.samp$Ct_pm
+
+#Run FFBS to obtain mt for all time values. (Gibbs only returns most recent.)
+test.ffbs = ffbs(m0,C0,y.known,F.known,G,v,W)
+
+#Plot each hour-of-day dummy var over time.
+pdf('/Users/jennstarling/UTAustin/Research/ercot/Figures/Small Scale Fit Test/2_Coast_Win9_Day Dummies Over Time.pdf',width=18,height=12)
+
+	par(mfrow=c(3,2),oma=c(1,1,0,0) + .1, mar=c(0,0,1,1)+1)
+	for (i in 28:p){
+		plot(test.ffbs$m[i,],type='l',xlab=paste('Day',i-27))
+		legend('topright',paste('Day:',i-27))
 	}
 dev.off()
 
@@ -237,4 +271,172 @@ pdf('/Users/jennstarling/UTAustin/Research/ercot/Figures/Small Scale Fit Test/3_
 	
 dev.off()
 
+#================================================================
+# PLOTS OF IN-SAMPLE ERRORS: ====================================
+#================================================================
 
+err.sq.insamp = (y.known - y.insamp)^2
+day.idx = c('Mon','Tue','Wed','Thu','Fri','Sat','Sun')
+day.num = 1:7
+hr.num = 0:23
+
+cols.hrs = c('darkred','firebrick','red3','red','tomato',
+	'orangered','orange3','darkorange3','darkorange',
+	'darkgreen','forestgreen','green3','yellowgreen',
+	'skyblue1','royalblue1','royalblue4','blue',
+	'plum2','orchid','purple','purple4',
+	'turquoise4 ','cyan4','darkgrey')
+cols.days = c('firebrick','darkorange','limegreen','darkgreen','skyblue1','blue','purple')
+
+#--------------------------------------------------------------
+# 1: BOXPLOT: By Day for each Hour (One plot per hour)
+#--------------------------------------------------------------
+
+pdf('/Users/jennstarling/UTAustin/Research/ercot/Figures/Small Scale Fit Test/4_Coast9_InSampleMSE_Plot_1.pdf',width=30, height=40)
+par(mfrow=c(6,4), oma=c(0,0,2,0))
+
+#Loop through hours and days.  One plot per hour, over all days.
+for (i in 0:23){
+	
+	temp.idx = dt.info$hr == i
+	temp.err = err.sq.insamp[dt.info$hr == i]
+	temp.day = dt.info[dt.info$hr == i,3]
+	
+	plot(temp.day, temp.err)
+	legend('topright',paste('Hr:',i))
+}
+
+mtext("In-Sample MSE by Day for each Hour", outer = TRUE, cex = 1.5)
+dev.off()
+
+#--------------------------------------------------------------
+# 2a: LINE PLOT - By Day for each Hour (One plot per hour)
+#--------------------------------------------------------------
+
+pdf('/Users/jennstarling/UTAustin/Research/ercot/Figures/Small Scale Fit Test/4_Coast9_InSampleMSE_Plot_2a.pdf',width=8, height=60)
+par(mfrow=c(24,1), oma=c(0,0,2,0))
+
+#Loop through hours and days.  One plot per hour, over all days.
+for (i in 0:23){
+	
+	temp.idx = dt.info$hr == i
+	temp.err = err.sq.insamp[temp.idx]
+	temp.day = dt.info[dt.info$hr == i,3]
+	temp.daynum = match(temp.day, day.idx)
+	
+	mse.by.day = rep(0,7)
+	
+	for (j in 1:7){
+		
+		temp.day = day.idx[j]
+		temp.idx = dt.info$hr==i & dt.info$day == temp.day
+		temp.err = err.sq.insamp[temp.idx]
+		mse.by.day[j] = mean(temp.err,na.rm=T)
+	}
+	
+	plot(1:7, mse.by.day, type='l', col='blue', lwd=2, ylab='In Sample MSE', xlab='Day', xaxt='n')
+	axis(1, at=1:7, labels=day.idx)
+	legend('topright',paste('Hr:',i))
+}
+
+mtext("In-Sample MSE by Day for each Hour", outer = TRUE, cex = 1.5)
+dev.off()
+
+#--------------------------------------------------------------
+# 2b: LINE PLOTS - By Day for each Hour, Overlaid On One Plot
+#--------------------------------------------------------------
+
+pdf('/Users/jennstarling/UTAustin/Research/ercot/Figures/Small Scale Fit Test/4_Coast9_InSampleMSE_Plot_2b.pdf',width=14, height=9)
+par(mfrow=c(1,1), oma=c(0,0,2,0), xpd=T, mar = c(5.1, 4.1, 4.1, 8.1))
+
+#Loop through hours and days.  One plot per hour, over all days.
+for (i in 0:23){
+	
+	temp.idx = dt.info$hr == i
+	temp.err = err.sq.insamp[temp.idx]
+	temp.day = dt.info[dt.info$hr == i,3]
+	temp.daynum = match(temp.day, day.idx)
+	
+	mse.by.day = rep(0,7)
+	
+	for (j in 1:7){
+		
+		temp.day = day.idx[j]
+		temp.idx = dt.info$hr==i & dt.info$day == temp.day
+		temp.err = err.sq.insamp[temp.idx]
+		mse.by.day[j] = mean(temp.err,na.rm=T)
+	}
+	
+	if(i==0){
+		plot(1:7, mse.by.day, type='l', col=cols.hrs[1], lwd=3, ylab='In Sample MSE', xlab='Day', xaxt='n', 
+			ylim=c(0,.006))
+		axis(1, at=1:7, labels=day.idx)
+		legend('topright',as.character(hr.num), lty=rep(1,24), lwd=rep(4,24), col=cols.hrs, inset=c(-0.1,0), title='Hour')
+	} else{
+		lines(1:7, mse.by.day, col=cols.hrs[i+1], lwd=3)	
+	}
+}
+
+mtext("In-Sample MSE by Hour for Each Day", outer = TRUE, cex = 1.5)
+dev.off()
+
+#--------------------------------------------------------------
+# 3a: LINE PLOTS - By Hour for each Day
+#--------------------------------------------------------------
+
+pdf('/Users/jennstarling/UTAustin/Research/ercot/Figures/Small Scale Fit Test/Coast9_InSampleMSE_Plot_3a.pdf',width=8, height=20)
+par(mfrow=c(7,1), oma=c(0,0,2,0))
+
+#Loop through hours and days.  One plot per hour, over all days.
+for (j in 1:7){
+	
+	temp.day = day.idx[j]
+	mse.by.hr = rep(0,24)
+	
+	for (i in 1:24){
+		temp.hr = i-1
+		temp.idx = dt.info$day==temp.day & dt.info$hr==temp.hr
+		temp.err = err.sq.insamp[temp.idx]
+		mse.by.hr[i] = mean(temp.err,na.rm=T)
+	}
+	
+	plot(1:24, mse.by.hr, type='l', col='blue', lwd=2, ylab='In Sample MSE', xlab='Hour', xaxt='n')
+	axis(1, at=1:24, labels=0:23)
+	legend('topright',paste('Day:',temp.day))
+}
+
+mtext("In-Sample MSE by Hour for Each Day", outer = TRUE, cex = 1.5)
+
+dev.off()
+
+#--------------------------------------------------------------
+# 3b: LINE PLOTS - By Hour for each Day, Overlaid On One Plot
+#--------------------------------------------------------------
+
+pdf('/Users/jennstarling/UTAustin/Research/ercot/Figures/Small Scale Fit Test/Coast9_InSampleMSE_Plot_3b.pdf',width=14, height=9)
+par(mfrow=c(1,1), oma=c(0,0,2,0), xpd=T, mar = c(5.1, 4.1, 4.1, 8.1))
+
+#Loop through hours and days.  One plot per hour, over all days.
+for (j in 1:7){
+	
+	temp.day = day.idx[j]
+	mse.by.hr = rep(0,24)
+	
+	for (i in 1:24){
+		temp.hr = i-1
+		temp.idx = dt.info$day==temp.day & dt.info$hr==temp.hr
+		temp.err = err.sq.insamp[temp.idx]
+		mse.by.hr[i] = mean(temp.err,na.rm=T)
+	}
+	
+	if(j==1){
+		plot(1:24, mse.by.hr, type='l', col=cols.days[j], lwd=2, ylab='In Sample MSE', xlab='Hour', xaxt='n')
+		axis(1, at=1:24, labels=0:23)
+		legend('topright',day.idx, lty=rep(1,7), lwd=rep(4,7), col=cols.days, inset=c(-0.1,0), title='Day')
+	} else{
+		lines(1:24, mse.by.hr, col=cols.days[j], lwd=2)
+	}
+}
+
+mtext("In-Sample MSE by Hour for Each Day", outer = TRUE, cex = 1.5)
+dev.off()
