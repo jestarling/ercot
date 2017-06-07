@@ -280,6 +280,8 @@ day.idx = c('Mon','Tue','Wed','Thu','Fri','Sat','Sun')
 day.num = 1:7
 hr.num = 0:23
 
+stat.to.plot = 'sd' # Should be 'mean' or 'sd'
+
 cols.hrs = c('darkred','firebrick','red3','red','tomato',
 	'orangered','orange3','darkorange3','darkorange',
 	'darkgreen','forestgreen','green3','yellowgreen',
@@ -331,7 +333,7 @@ for (i in 0:23){
 		temp.day = day.idx[j]
 		temp.idx = dt.info$hr==i & dt.info$day == temp.day
 		temp.err = err.sq.insamp[temp.idx]
-		mse.by.day[j] = mean(temp.err,na.rm=T)
+		mse.by.day[j] = ifelse(stat.to.plot=='mean',mean(temp.err,na.rm=T),sd(temp.err,na.rm=T))
 	}
 	
 	plot(1:7, mse.by.day, type='l', col='blue', lwd=2, ylab='In Sample MSE', xlab='Day', xaxt='n')
@@ -339,7 +341,7 @@ for (i in 0:23){
 	legend('topright',paste('Hr:',i))
 }
 
-mtext("In-Sample MSE by Day for each Hour", outer = TRUE, cex = 1.5)
+mtext(paste("In-Sample MSE by Day for each Hour:",stat.to.plot), outer = TRUE, cex = 1.5)
 dev.off()
 
 #--------------------------------------------------------------
@@ -364,12 +366,12 @@ for (i in 0:23){
 		temp.day = day.idx[j]
 		temp.idx = dt.info$hr==i & dt.info$day == temp.day
 		temp.err = err.sq.insamp[temp.idx]
-		mse.by.day[j] = mean(temp.err,na.rm=T)
+		mse.by.day[j] = ifelse(stat.to.plot=='mean',mean(temp.err,na.rm=T),sd(temp.err,na.rm=T))
 	}
 	
 	if(i==0){
 		plot(1:7, mse.by.day, type='l', col=cols.hrs[1], lwd=3, ylab='In Sample MSE', xlab='Day', xaxt='n', 
-			ylim=c(0,.006))
+			ylim=c(0,.008))
 		axis(1, at=1:7, labels=day.idx)
 		legend('topright',as.character(hr.num), lty=rep(1,24), lwd=rep(4,24), col=cols.hrs, inset=c(-0.1,0), title='Hour')
 	} else{
@@ -377,7 +379,7 @@ for (i in 0:23){
 	}
 }
 
-mtext("In-Sample MSE by Hour for Each Day", outer = TRUE, cex = 1.5)
+mtext(paste("In-Sample MSE by Day for each Hour:",stat.to.plot), outer = TRUE, cex = 1.5)
 dev.off()
 
 #--------------------------------------------------------------
@@ -397,7 +399,7 @@ for (j in 1:7){
 		temp.hr = i-1
 		temp.idx = dt.info$day==temp.day & dt.info$hr==temp.hr
 		temp.err = err.sq.insamp[temp.idx]
-		mse.by.hr[i] = mean(temp.err,na.rm=T)
+		mse.by.hr[i] = ifelse(stat.to.plot=='mean',mean(temp.err,na.rm=T),sd(temp.err,na.rm=T))
 	}
 	
 	plot(1:24, mse.by.hr, type='l', col='blue', lwd=2, ylab='In Sample MSE', xlab='Hour', xaxt='n')
@@ -405,8 +407,7 @@ for (j in 1:7){
 	legend('topright',paste('Day:',temp.day))
 }
 
-mtext("In-Sample MSE by Hour for Each Day", outer = TRUE, cex = 1.5)
-
+mtext(paste("In-Sample MSE by Hour for Each Day:",stat.to.plot), outer = TRUE, cex = 1.5)
 dev.off()
 
 #--------------------------------------------------------------
@@ -426,7 +427,7 @@ for (j in 1:7){
 		temp.hr = i-1
 		temp.idx = dt.info$day==temp.day & dt.info$hr==temp.hr
 		temp.err = err.sq.insamp[temp.idx]
-		mse.by.hr[i] = mean(temp.err,na.rm=T)
+		mse.by.hr[i] = ifelse(stat.to.plot=='mean',mean(temp.err,na.rm=T),sd(temp.err,na.rm=T))
 	}
 	
 	if(j==1){
@@ -438,5 +439,5 @@ for (j in 1:7){
 	}
 }
 
-mtext("In-Sample MSE by Hour for Each Day", outer = TRUE, cex = 1.5)
+mtext(paste("In-Sample MSE by Hour for Each Day:",stat.to.plot), outer = TRUE, cex = 1.5)
 dev.off()
