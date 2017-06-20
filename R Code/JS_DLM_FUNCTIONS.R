@@ -58,6 +58,7 @@ dlm.fit = function(y, F, F.future, G, K, m0, C0, a.y=1, b.y=2, a.theta, b.theta,
 	#			Ct 				= Posterior mean of Ct matrix from Gibbs Sampler. (Mean of ffbs iterations for time t.)
 	#			v 				= Posterior mean of v from Gibbs Sampler.
 	#			W 				= Posterior mean of W from Gibbs Sampler.
+	#			theta_pm 		= Posterior mean of theta (for all times t) from Gibbs Sampler.
 	#-------------------------------------------------------------
 	
 	#-------------------------------------------------------------
@@ -82,6 +83,24 @@ dlm.fit = function(y, F, F.future, G, K, m0, C0, a.y=1, b.y=2, a.theta, b.theta,
 	mt = params$mt_pm
 	Ct = params$Ct_pm
 	
+	theta_pm = params$theta_pm
+	
+	#Output list for parameter estimation.
+	params = list(v=v, W=W, mt=mt, Ct=Ct, theta=theta_pm)
+	
+	#-------------------------------------------------------------
+	# In-sample fit info.
+	#-------------------------------------------------------------
+	
+	yhat.insamp = rowSums(F * t(theta_pm))
+	err.insamp  = y - yhat.insamp
+	mse.insamp  = round(sum((y - yhat.insamp)^2) / length(y),8)
+	
+	#Output list for in-sample model fit.
+	insamp = list(yhat.insamp=yhat.insamp, 
+				  err.insamp=err.insamp, 
+				  mse.insamp=mse.insamp)
+	
 	#-------------------------------------------------------------
 	# Forecasting recursion.
 	#-------------------------------------------------------------
@@ -95,21 +114,33 @@ dlm.fit = function(y, F, F.future, G, K, m0, C0, a.y=1, b.y=2, a.theta, b.theta,
 	
 	theta.pred.mean = fcast$theta_pred_mean
 	theta.pred.var  = fcast$theta_pred_var
+	
+	#Output list for forecasting future obs.
+	forecast = list(y.pred.mean=y.pred.mean, 
+					y.pred.var=y.pred.var, 
+					theta.pred.mean=theta.pred.mean, 
+					theta.pred.var=theta.pred.var)
 		
 	#-------------------------------------------------------------
 	#Return output.
 	#-------------------------------------------------------------
 	
-	return(list(
-		y.pred.mean		= y.pred.mean,
-		y.pred.var 		= y.pred.var,
-		theta.pred.mean = theta.pred.mean,
-		theta.pred.var 	= theta.pred.var,
-		mt 				= mt,
-		Ct 				= Ct,
-		v				= v,
-		W				= W 
-	))	
+	return(list(params = params, 
+				insamp = insamp, 
+				forecast = forecast))
+	
+	
+	# return(list(
+		# y.pred.mean		= y.pred.mean,
+		# y.pred.var 		= y.pred.var,
+		# theta.pred.mean = theta.pred.mean,
+		# theta.pred.var 	= theta.pred.var,
+		# mt 				= mt,
+		# Ct 				= Ct,
+		# v				= v,
+		# W				= W ,
+		# theta_pm 		= theta_pm
+	# ))	
 
 } # End dlm.fit function.
 
@@ -174,26 +205,32 @@ dlm.fittest = function(y, F, G, K, m0, C0, a.y=1, b.y=2, a.theta, b.theta, windo
 	#-------------------------------------------------------------
 	
 	fit = dlm.fit(y.known,F.known,F.future,G,K,m0,C0,a.y,b.y,a.theta,b.theta,iter,burn)
-	
+
 	#-------------------------------------------------------------
 	# MSE Calculation.
 	#-------------------------------------------------------------
 	
 	# Calculate MSE.pred as sum((y.pred.mean - y.future.)^2)
-	y.pred = fit$y.pred.mean
+	y.pred = fit$forecast$y.pred.mean
 	MSE.pred = mean((y.future - y.pred)^2)
 	
 	#-------------------------------------------------------------
 	#Return output.
 	#-------------------------------------------------------------
 	
+	params = fit$params
+	insamp = fit$insamp
+	forecast = fit$forecast
+	
 	return(list(
-		y.pred.mean	 = y.pred,
-		y.pred.var 	 = fit$y.pred.var,
-		y.future	 = y.future,
-		F.future 	 = F.future,
-		fit   		 = fit,			#Contains mt, Ct, v, W
-		mse		 	 = MSE.pred
+		params 		= params,
+		insamp 		= insamp,
+		forecast 	= forecast,
+		y.future	= y.future,
+		F.future 	= F.future,
+		mse.future	= MSE.pred,
+		y.known		= y.known,
+		F.known		= F.known
 	))
 
 } #End dlm.fittest function.
@@ -202,7 +239,8 @@ dlm.fittest = function(y, F, G, K, m0, C0, a.y=1, b.y=2, a.theta, b.theta, windo
 # DLM Model Testing "Cross-Val" =================================
 #================================================================
 
-dlm.fittest.cv = function(y, F, G, K=100, m0, C0, a.y=1, b.y=2, a.theta, b.theta, win.size=10000, iter=11000, burn=1000){
+dlm.fittest.movingWindow = function(y, F, G, K=100, m0, C0, a.y=1, b.y=2, 
+									a.theta, b.theta, win.size=10000, iter=11000, burn=1000){
 	#-------------------------------------------------------------
 	#FUNCTION: 	Repeats the dlm.fittest function for a moving window of 
 	#			specified size.  Calculates MSE for each window, and saves
@@ -239,16 +277,20 @@ dlm.fittest.cv = function(y, F, G, K=100, m0, C0, a.y=1, b.y=2, a.theta, b.theta
 		print('Error: win.size + K cannot exceed length(y).')
 	}
 	
-	t0 = start	#Vector to hold start points for each window.
-	tn = end	#Vector to hold endpoints for each window.
+	t0.vec = start	#Vector to hold start points for each window.
+	tn.vec = end	#Vector to hold endpoints for each window.
 	win = 1
 	
 	for (i in 2:n){
-		start 	= t0[i] = end - win.size/2
-		end 	= tn[i] = start + win.size
+		start 	= t0.vec[i] = end - win.size/2
+		end 	= tn.vec[i] = start + win.size
 		if (end + K > n) break
 		win = win + 1
 	}
+	
+	#Trim if needed.
+	t0.vec = t0.vec[1:win]
+	tn.vec = tn.vec[1:win]
 	
 	#-------------------------------------------------------------
 	#Initialize future predicted y, future actual y values, error, and mse.
@@ -265,19 +307,29 @@ dlm.fittest.cv = function(y, F, G, K=100, m0, C0, a.y=1, b.y=2, a.theta, b.theta
 	#-------------------------------------------------------------
 	# Loop through each window and fit/forecast.
 	#-------------------------------------------------------------
+	
+	#Empty list to store all dlm.fittest() objects.
+	dlm.fittest.all = list()
 		
-	for (i in 1:win){
-		#Run test.
-		window=c(t0[i],tn[i])
-		test = dlm.fittest(y,F,G,K,m0,C0,a.y=1,b.y=2,a.theta,b.theta,window,iter,burn)
+	for (l in 1:win){
+		
+		#Run DLM calculations for window.
+		output   = dlm.fittest(y, F, G, K, m0, C0, a.y, b.y, a.theta, b.theta, window=c(t0.vec[l],tn.vec[l]), iter, burn)
+		
+		#Save dlm fittest object.
+		dlm.fittest.all[[l]] = output
 		
 		#Save values.
-		y.pred.mean[,i] = test$y.pred.mean
-		y.pred.var[,i]	= test$y.pred.var
-		y.future[,i] 	= test$y.future
-		error[,i] 		= test$y.future - test$y.pred.mean
-		mse[i] 			= test$mse
-	}
+		y.pred.mean[,l] = output$forecast$y.pred.mean
+		y.pred.var[,l]	= output$forecast$y.pred.var
+		y.future[,l] 	= output$y.future
+		error[,l] 		= output$y.future - output$forecast$y.pred.mean
+		mse[l] 			= output$mse.future
+	
+		print(paste('Window completed:',l))
+	} #End windows loop.
+	
+	print('Completed windows loop')
 	
 	#-------------------------------------------------------------
 	#Return output.
@@ -287,9 +339,10 @@ dlm.fittest.cv = function(y, F, G, K=100, m0, C0, a.y=1, b.y=2, a.theta, b.theta
 		paste('window.',1:win,sep='')
 	
 	return(list(
-		y.pred.mean	= y.pred.mean,
-		y.pred.var 	= y.pred.var, 
-		y.future	= y.future, 
-		error		= error, 
-		mse			= mse))	
+		y.pred.mean		= y.pred.mean,
+		y.pred.var 		= y.pred.var, 
+		y.future		= y.future, 
+		error			= error, 
+		mse				= mse,
+		dlm.fittest.all = dlm.fittest.all))	
 }

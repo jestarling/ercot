@@ -74,10 +74,11 @@ names(test.gibbs)
 v = test.gibbs$v_pm
 W = diag(as.numeric(test.gibbs$w_pm))
 
+#TRY SETTING HOURLY DUMMIES TO 0 for W.
+#W[,28:33] = 0
+
 #---------------------------------------------------------------
 # 2. Test Rcpp ffbs function.
-
-W = diag(w)
 
 test.ffbs = ffbs(m0,C0,y.known,F.known,G,v,W)
 test.ffbs

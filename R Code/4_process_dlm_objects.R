@@ -60,9 +60,7 @@ sum(!(load$Time %in% bushr$datetime))
 
 #Create DLM matrices and vectors for each zone.
 n = nrow(load)	#Num observations.
-#p = 28			#Num predictors.
-#p = 27			#Num predictors - Adjusted to fix overparameterization (Hour 0 = baseline)
-p = 33			#Num predictors - adjusted to add day-of-week dummy variables.
+p = 27			#Num predictors. #*****************
 
 #Data structures to hold one set of y, G, F per zone, and one for entire ercot.
 y = list()
@@ -93,23 +91,10 @@ for (i in 1:8){
 	colnames(F.hrdummies) = paste('hr.',c(1:23),sep='')
 	
 	#------------------------------------------------------------
-	# Add day-of-week dummies to F matrix.
-	#------------------------------------------------------------
-	
-	F.daydummies = matrix(0,nrow=n, ncol=6) #Sunday is baseline.	
-	wk.days = weekdays(as.Date(t))
-	days.list = c('Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday')
-
-	for (j in 1:6){
-		F.daydummies[which(wk.days==days.list[j+1]),j] = 1
-	}
-	colnames(F.daydummies) = c('M','T','W','Th','F','Sa')
-	
-	#------------------------------------------------------------
 	# Assemble F matrix.
 	#------------------------------------------------------------
 	
-	F[[i]] = as.matrix(cbind.data.frame(F.int,F.temp,F.temp2,F.holiday,F.hrdummies,F.daydummies))
+	F[[i]] = as.matrix(cbind.data.frame(F.int,F.temp,F.temp2,F.holiday,F.hrdummies)) #*****************
 	
 }
 
@@ -119,7 +104,7 @@ G_all = G
 
 names(y) = names(F_all) = names(G_all) = colnames(zone_temp)
 
-times = rownames(zone_temp)
+times = rownames(zone_temp[which(rownames(zone_temp) %in% load$Time),])
 dates = as.Date(substr(times,1,10))
 hrs = as.numeric(substr(times,12,13))
 days = format(dates, format="%a")

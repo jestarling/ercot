@@ -158,10 +158,10 @@ vec fullcond_w(vec a, vec b, mat G, mat theta, vec y, vec m0){
 
 		// Initialize variables.
 		vec alpha 		= zeros(p);
-		vec beta 			= zeros(p);
-		vec sh 				= zeros(p);
-		vec rt 				= zeros(p);
-		vec w 				= zeros(p);		// Empty vector to hold w1,...,wp.
+		vec beta 		= zeros(p);
+		vec sh 			= zeros(p);
+		vec rt 			= zeros(p);
+		vec w 			= zeros(p);		// Empty vector to hold w1,...,wp.
 		vec SS_theta 	= zeros(p);  
 
 		//-------------------------------------------------------------
@@ -229,6 +229,10 @@ List ffbs(vec m0, mat C0, vec y, mat F, mat G, double v, mat W){
 	
 	int T = y.n_elem; 	// Number of time points.
 	int p = F.n_cols;	//N umber of covariates.
+	
+	//Set up diagonal matrix of small values to ensure psd.
+	mat Sigma = eye(p,p);
+	Sigma.replace(1,1e-12);
 	
 	//-------------------------------------------------------------
 	// Initialize data structures for Kalman Filter.
@@ -319,7 +323,7 @@ List ffbs(vec m0, mat C0, vec y, mat F, mat G, double v, mat W){
 		At = R.slice(t) * Ft.t() * 1/Q(t);	// Precache for mt and Ct updates. (West/Harrison Notation Ch 4)
 		
 		m.col(t) 	= a.col(t) + At* et;
-		C.slice(t) = R.slice(t) - At * Q(t) * At.t();
+		C.slice(t)  = R.slice(t) - At * Q(t) * At.t() + Sigma;
 		
 		// Draw theta_t from filtering distribution.
 		theta_ff.col(t) = dlm::rmvnormArma(1,m.col(t),C.slice(t));
@@ -345,7 +349,7 @@ List ffbs(vec m0, mat C0, vec y, mat F, mat G, double v, mat W){
 		CGRinv 	   = C.slice(t) * G.t() * inv(R.slice(t+1));
 
 		h.col(t)   = m.col(t) + CGRinv * (theta_ff.col(t+1) - a.col(t+1));
-		H.slice(t) = C.slice(t) - CGRinv * G * C.slice(t);
+		H.slice(t) = C.slice(t) - CGRinv * G * C.slice(t) + Sigma;
 		
 		// Draw theta_t from ffbs recursion.
 		theta_ffbs_draw.col(t) = dlm::rmvnormArma(1,h.col(t),H.slice(t));
@@ -389,8 +393,6 @@ List forecast(vec mt, mat Ct, mat F, mat G, double v, mat W, int K){
 	//-------------------------------------------------------------
 	// INPUTS:		m0 	= prior mean for theta.
 	//				C0 	= prior (diagonal) cov matrix for theta.
-	//				V 	= prior scalar for obs variance.
-	//				W 	= State cov matrix at time t.
 	//				F 	= matrix of covariates at times t+1 to t+k, each row = one time.
 	//				Gt 	= state matrix at time t (default Im)	
 	//				k 	= forecasts t+k thetas into future, for k >= 1.
