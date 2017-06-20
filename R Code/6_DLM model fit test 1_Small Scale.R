@@ -23,8 +23,8 @@ source('R Code/JS_DLM_FUNCTIONS.R')
 sourceCpp(file='R Code/JS_DLM_FUNCTIONS.cpp')
 
 #Set parameters for # iterations and burn.
-iter = 10
-burn = 2
+iter = 1100
+burn = 100
 
 #Read in data.
 y_all = readRDS('R Data Objects/dlm_y_allzones.rda')
@@ -253,6 +253,20 @@ pdf(paste(out,"06_COAST_Win9_Hourly Dummy Trace.pdf"), width=18, height=12)
 	}
 dev.off()
 
+#--------------------------------------------------------
+#   Plot autocorrelation of in-sample errors. 
+#--------------------------------------------------------
+
+#Save in-sample errors.
+err.insamp = output$insamp$err.insamp
+
+#Confirm errors are mean zero.
+mean(err.insamp)
+
+#Plot in-sample errors' autocorrelation structure.
+pdf(paste(out,"Insamp_Errors_Autocorrelation.pdf"), width=10, height=8)
+	acf(err.insamp)
+dev.off()
 
 #=======================================================================
 #===   Forecast Testing For Next 100 Obs:   ============================

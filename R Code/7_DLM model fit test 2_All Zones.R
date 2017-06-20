@@ -9,8 +9,8 @@ rm(list=ls())
 library(matrixStats)
 
 #Set parameters for # iterations and burn.
-iter = 5
-burn = 2
+iter = 1100
+burn = 100
 
 
 #Set file path and working directory.
