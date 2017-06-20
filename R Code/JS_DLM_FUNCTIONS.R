@@ -6,7 +6,8 @@
 library(Rcpp)
 library(RcppArmadillo)
 
-sourceCpp(file='/Users/jennstarling/UTAustin/Research/ercot/R Code/JS_DLM_FUNCTIONS.cpp')
+path = '/Users/jennstarling/UTAustin/Research/ercot'
+sourceCpp(file = paste(path,'/R Code/JS_DLM_FUNCTIONS.cpp',sep=''))
 
 #================================================================
 # Model: ========================================================

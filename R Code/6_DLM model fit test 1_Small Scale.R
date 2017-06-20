@@ -11,11 +11,12 @@ library(matrixStats)
 #Save script start time.
 time.start = Sys.time()
 
-#Set working directory.
-setwd('/Users/jennstarling/UTAustin/Research/ercot')
+#Set file path and working directory.
+path = '/Users/jennstarling/UTAustin/Research/ercot'
+setwd(path)
 
 #Set output directory.
-out = '/Users/jennstarling/UTAustin/Research/ercot/Figures/Small Scale Fit Test/'
+out = paste(path,'/Figures/Small Scale Fit Test/',sep='')
 
 #Load functions.
 source('R Code/JS_DLM_FUNCTIONS.R')

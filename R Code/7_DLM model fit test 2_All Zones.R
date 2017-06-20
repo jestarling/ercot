@@ -12,11 +12,13 @@ library(matrixStats)
 iter = 5
 burn = 2
 
-#Set working directory.
-setwd('/Users/jennstarling/UTAustin/Research/ercot')
+
+#Set file path and working directory.
+path = '/Users/jennstarling/UTAustin/Research/ercot'
+setwd(path)
 
 #Set output directory.
-out = '/Users/jennstarling/UTAustin/Research/ercot/Figures/All Zones Fit Test/'
+out = paste(path,'/Figures/All Zones Fit Test/',sep='')
 
 #Load functions.
 source('R Code/JS_DLM_FUNCTIONS.R')
