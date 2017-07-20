@@ -1,11 +1,10 @@
-data/*/*
-/data/*
-/data/*/*
+Data/*
+DataRaw/*
 
-Literature/*/*
-/Literature/*
-/Literature/*/*
+/Paper/SDS383D SP 17 Writeup/*
 
-SDS383D Sp 17 Writeup/Tex_and_Figures/*
-/SDS383D Sp 17 Writeup/Tex_and_Figures/*
-/SDS383D Sp 17 Writeup/Tex_and_Figures/*/*
+_newproject.R
+.Rproj.user
+
+Reference/Textbooks | West and Harrison_Bayesian Forecasting and Dynamic Models.pdf
+Reference/textbooks | Dynamic_Linear_Models_with_R.pdf
